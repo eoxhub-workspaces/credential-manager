@@ -1,6 +1,7 @@
 fastapi==0.63.0
 starlette_exporter==0.7.0
 starlette==0.13.6
+python-multipart==0.0.5
 pydantic==1.8.1
 jinja2==2.11.3
 async-asgi-testclient==1.4.6
