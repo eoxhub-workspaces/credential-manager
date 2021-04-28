@@ -1,6 +1,6 @@
 version: "3.7"
 services:
-    edc-my-credentials:
+    my-credentials:
         build: .
         ports:
         - 5000:5000
@@ -8,4 +8,4 @@ services:
         - .:/srv/service
         env_file:
           - "./test_environment.env"
-        command: uvicorn --host=0.0.0.0 --port 5000 --log-level=info byoa_results:app --workers 3
+        command: uvicorn --host=0.0.0.0 --port 5000 --log-level=info my_credentials:app --workers 3
