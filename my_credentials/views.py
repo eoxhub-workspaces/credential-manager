@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory="templates")
 
+LABEL_SELECTOR = "owner=edc-my-credentials"
+
 
 @app.on_event("startup")
 async def startup_load_k8s_config():
@@ -35,6 +37,7 @@ async def list_credentials(request: Request):
     secret_list: k8s_client.V1SecretList = (
         k8s_client.CoreV1Api().list_namespaced_secret(
             namespace=current_namespace(),
+            label_selector=LABEL_SELECTOR,
         )
     )
 
