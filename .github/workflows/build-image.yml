@@ -33,6 +33,7 @@ jobs:
           tags: |
             eurodatacube/edc-my-credentials:${{ steps.get_image_tag.outputs.TAG }}
 
+      # this checkout is needed to be able to use test_environment.env for docker run
       - name: "Git checkout"
         uses: actions/checkout@v2
 

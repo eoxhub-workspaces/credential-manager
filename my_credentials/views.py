@@ -23,6 +23,7 @@ LABEL_SELECTOR = "owner=edc-my-credentials"
 
 @app.on_event("startup")
 async def startup_load_k8s_config():
+    return
     try:
         k8s_config.load_kube_config()
     except Exception:
@@ -56,6 +57,30 @@ async def list_credentials(request: Request):
             "secrets": secrets_serialized,
         },
     )
+
+
+@app.get("/credentials-detail/{credential_name}", response_class=HTMLResponse)
+@app.get("/credentials-detail/", response_class=HTMLResponse)
+async def credentials_detail(request: Request, credential_name: str = ""):
+    is_new_credential = not bool(credential_name)
+
+    secret = {"name": credential_name, "data": {"a": "b", "c": "d"}}
+
+    return templates.TemplateResponse(
+        "credential_detail.html",
+        {
+            "request": request,
+            "secret": secret,
+            "is_new_credential": is_new_credential,
+        },
+    )
+
+
+@app.post("/credentials-detail/{credential_name}", response_class=HTMLResponse)
+@app.post("/credentials-detail/", response_class=HTMLResponse)
+async def create_or_udpate(request: Request, credential_name: str = ""):
+    # credentials-name=asdf&secret_key=a&secret_value=b&secret_key=asdf&secret_value=d
+    ...
 
 
 def current_namespace():
