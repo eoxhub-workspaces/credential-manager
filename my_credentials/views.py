@@ -1,4 +1,5 @@
 import base64
+import http
 import collections
 import logging
 
@@ -17,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory="templates")
 
-LABEL_SELECTOR = "owner=edc-my-credentials"
+MY_SECRETS_LABEL_KEY = "owner"
+MY_SECRETS_LABEL_VALUE = "edc-my-credentials"
 
 
 @app.on_event("startup")
@@ -35,7 +37,7 @@ async def list_credentials(request: Request):
     secret_list: k8s_client.V1SecretList = (
         k8s_client.CoreV1Api().list_namespaced_secret(
             namespace=current_namespace(),
-            label_selector=LABEL_SELECTOR,
+            label_selector=f"{MY_SECRETS_LABEL_KEY}={MY_SECRETS_LABEL_VALUE}",
         )
     )
 
@@ -113,7 +115,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         ),
     )
 
-    return RedirectResponse(url="/")
+    return RedirectResponse(
+        url="/",
+        status_code=http.HTTPStatus.FOUND,
+    )
 
 
 def serialize_secret(secret: k8s_client.V1Secret) -> dict:
