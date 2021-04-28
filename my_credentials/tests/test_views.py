@@ -108,7 +108,7 @@ async def test_edit_credentials_updates_secrets(client, mock_secret_patch):
     assert (
         kwargs["body"].data["user"] == base64.b64encode("testington".encode()).decode()
     )
-    assert kwargs["name"] == "existing-secret"
+    assert kwargs["body"].metadata.name == "existing-secret"
 
     assert response.headers["location"] == "/"
 
@@ -128,6 +128,6 @@ async def test_create_credentials_creates_secrets(client, mock_secret_create):
     assert (
         kwargs["body"].data["user"] == base64.b64encode("testington".encode()).decode()
     )
-    assert kwargs["name"] == "new-secret"
+    assert kwargs["body"].metadata.name == "new-secret"
 
     assert response.headers["location"] == "/"

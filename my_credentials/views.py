@@ -100,13 +100,16 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
 
     do_action(
-        name=data.credentials_name,
         namespace=current_namespace(),
         body=k8s_client.V1Secret(
+            metadata=k8s_client.V1ObjectMeta(
+                name=data.credentials_name,
+                labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
+            ),
             data={
                 key: base64.b64encode(value.encode()).decode()
                 for key, value in zip(data.secret_key, data.secret_value)
-            }
+            },
         ),
     )
 
