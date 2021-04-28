@@ -33,9 +33,6 @@ jobs:
           tags: |
             eurodatacube/edc-my-credentials:${{ steps.get_image_tag.outputs.TAG }}
 
-      - name: "Git checkout"
-        uses: actions/checkout@v2
-
       - name: test and push
         run: |
           IMG="eurodatacube/edc-my-credentials:${{ steps.get_image_tag.outputs.TAG }}"
