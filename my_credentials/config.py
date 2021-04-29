@@ -1,3 +1,1 @@
-import os
-
-A = os.environ["A"]
+# no config for now
