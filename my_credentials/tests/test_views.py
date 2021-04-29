@@ -1,11 +1,12 @@
 import base64
 from contextlib import contextmanager
+import http
 from unittest import mock
 
 from kubernetes import client as k8s_client
 import pytest
 
-from my_credentials.views import B64DecodedAccessDict
+from my_credentials.views import B64DecodedAccessDict, MY_SECRETS_LABEL_KEY
 
 
 @contextmanager
@@ -38,6 +39,14 @@ def mock_secret_create():
 def mock_secret_patch():
     with mock.patch(
         "my_credentials.views.k8s_client.CoreV1Api.patch_namespaced_secret",
+    ) as mocker:
+        yield mocker
+
+
+@pytest.fixture()
+def mock_secret_delete():
+    with mock.patch(
+        "my_credentials.views.k8s_client.CoreV1Api.delete_namespaced_secret",
     ) as mocker:
         yield mocker
 
@@ -94,21 +103,24 @@ def create_form_data(is_update: bool):
 
 
 @pytest.mark.asyncio
-async def test_edit_credentials_updates_secrets(client, mock_secret_patch):
-    response = await client.post(
-        "/credentials-detail/existing-secret",
-        # NOTE: can't just pass form because async_asgi_testclient doesn't support
-        #       multidicts
-        data=create_form_data(is_update=True),
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        allow_redirects=False,
-    )
+async def test_edit_credentials_updates_secrets(client, mock_secret_patch, secret):
 
-    kwargs = mock_secret_patch.mock_calls[0].kwargs
-    assert (
-        kwargs["body"].data["user"] == base64.b64encode("testington".encode()).decode()
-    )
-    assert kwargs["body"].metadata.name == "existing-secret"
+    with do_mock_secret_read(secret):
+        response = await client.post(
+            "/credentials-detail/existing-secret",
+            # NOTE: can't just pass form because async_asgi_testclient doesn't support
+            #       multidicts
+            data=create_form_data(is_update=True),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            allow_redirects=False,
+        )
+
+    body = mock_secret_patch.mock_calls[0].kwargs["body"]
+    # update
+    assert body.data["user"] == base64.b64encode("testington".encode()).decode()
+    # delete old keys
+    assert body.data["existing-key"] is None
+    assert body.metadata.name == "existing-secret"
 
     assert response.headers["location"] == "/"
 
@@ -131,3 +143,29 @@ async def test_create_credentials_creates_secrets(client, mock_secret_create):
     assert kwargs["body"].metadata.name == "new-secret"
 
     assert response.headers["location"] == "/"
+
+
+@pytest.mark.asyncio
+async def test_delete_credentials_deletes_secrets(client, mock_secret_delete, secret):
+    with do_mock_secret_read(secret):
+        response = await client.delete(
+            "/credentials-detail/foo",
+        )
+    assert response.status_code == http.HTTPStatus.NO_CONTENT
+
+    assert mock_secret_delete.mock_calls[0].kwargs["name"] == "foo"
+
+
+@pytest.mark.asyncio
+async def test_delete_credentials_not_allowed_for_other_secrets(
+    client, mock_secret_delete, secret
+):
+    del secret.metadata.labels[MY_SECRETS_LABEL_KEY]
+
+    with do_mock_secret_read(secret):
+        response = await client.delete(
+            "/credentials-detail/foo",
+        )
+
+    assert response.status_code == http.HTTPStatus.FORBIDDEN
+    mock_secret_delete.assert_not_called()

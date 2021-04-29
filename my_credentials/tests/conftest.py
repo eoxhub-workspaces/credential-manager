@@ -1,4 +1,5 @@
 import base64
+from my_credentials.views import MY_SECRETS_LABEL_KEY, MY_SECRETS_LABEL_VALUE
 from unittest import mock
 
 from async_asgi_testclient import TestClient
@@ -29,8 +30,14 @@ def secret() -> k8s_client.V1Secret:
     data = {
         "username": "testington",
         "password": "123",
+        "existing-key": "foo",
     }
     return k8s_client.V1Secret(
-        metadata=k8s_client.V1ObjectMeta(name="credentials-a"),
+        metadata=k8s_client.V1ObjectMeta(
+            name="credentials-a",
+            labels={
+                MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE,
+            },
+        ),
         data={k: base64.b64encode(v.encode()) for k, v in data.items()},
     )

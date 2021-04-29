@@ -1,9 +1,9 @@
 import base64
-import http
 import collections
+import http
 import logging
 
-from fastapi import Request
+from fastapi import Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from kubernetes import client as k8s_client, config as k8s_config
@@ -86,7 +86,7 @@ class CredentialsPayload(BaseModel):
 @app.post("/credentials-detail/", response_class=HTMLResponse)
 async def create_or_update(request: Request, credentials_name: str = ""):
 
-    is_new_credential = not bool(credentials_name)
+    is_update = bool(credentials_name)
 
     form_data = await request.form()
     data = CredentialsPayload(
@@ -95,30 +95,49 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         secret_key=form_data.getlist("secret_key"),
     )
 
-    do_action = (
-        k8s_client.CoreV1Api().create_namespaced_secret
-        if is_new_credential
-        else k8s_client.CoreV1Api().patch_namespaced_secret
+    new_secret = k8s_client.V1Secret(
+        metadata=k8s_client.V1ObjectMeta(
+            name=data.credentials_name,
+            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
+        ),
+        data={
+            key: base64.b64encode(value.encode()).decode()
+            for key, value in zip(data.secret_key, data.secret_value)
+        },
     )
 
-    do_action(
-        namespace=current_namespace(),
-        body=k8s_client.V1Secret(
-            metadata=k8s_client.V1ObjectMeta(
-                name=data.credentials_name,
-                labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
-            ),
-            data={
-                key: base64.b64encode(value.encode()).decode()
-                for key, value in zip(data.secret_key, data.secret_value)
-            },
-        ),
-    )
+    if is_update:
+        existing_secret = ensure_secret_is_mine(credentials_name)
+        new_secret.data |= {
+            # set keys that don't exist any more to None for deletion
+            k: None for k in existing_secret.data if k not in new_secret.data
+        }
+        k8s_client.CoreV1Api().patch_namespaced_secret(
+            name=credentials_name,
+            namespace=current_namespace(),
+            body=new_secret,
+        )
+    else:
+
+        k8s_client.CoreV1Api().create_namespaced_secret(
+            namespace=current_namespace(),
+            body=new_secret,
+        )
 
     return RedirectResponse(
         url="/",
         status_code=http.HTTPStatus.FOUND,
     )
+
+
+@app.delete("/credentials-detail/{credentials_name}")
+def delete_credentials(credentials_name: str):  # , response_class=PlainTextResponse
+    _ = ensure_secret_is_mine(credentials_name)
+    k8s_client.CoreV1Api().delete_namespaced_secret(
+        name=credentials_name,
+        namespace=current_namespace(),
+    )
+    return Response(status_code=http.HTTPStatus.NO_CONTENT)
 
 
 def serialize_secret(secret: k8s_client.V1Secret) -> dict:
@@ -138,3 +157,15 @@ class B64DecodedAccessDict(collections.UserDict):
     def __getitem__(self, key) -> str:
         value = super().__getitem__(key)
         return base64.b64decode(value).decode()
+
+
+def ensure_secret_is_mine(credential_name: str) -> k8s_client.V1Secret:
+    secret: k8s_client.V1Secret = k8s_client.CoreV1Api().read_namespaced_secret(
+        name=credential_name,
+        namespace=current_namespace(),
+    )
+
+    if secret.metadata.labels.get(MY_SECRETS_LABEL_KEY) != MY_SECRETS_LABEL_VALUE:
+        raise HTTPException(status_code=http.HTTPStatus.FORBIDDEN)
+
+    return secret
