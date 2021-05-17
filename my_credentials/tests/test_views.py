@@ -52,6 +52,12 @@ def mock_secret_delete():
 
 
 @pytest.mark.asyncio
+async def test_access_only_allowed_for_correct_user(client):
+    response = await client.get("/", headers={"X-Auth-Request-User": "other-user"})
+    assert response.status_code == http.HTTPStatus.FORBIDDEN
+
+
+@pytest.mark.asyncio
 async def test_credentials_show_no_results_initially(client):
     with do_mock_secret_list(secrets=[]):
         response = await client.get("/")

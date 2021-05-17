@@ -9,18 +9,25 @@ import pytest
 from my_credentials import app
 
 
+USER = "foo-123"
+
+
 @pytest.fixture
 def client():
     # we only use this as a workaround for a starlette bug
     # https://github.com/tiangolo/fastapi/issues/806#issuecomment-567913676
     # https://github.com/encode/starlette/issues/472
-    return TestClient(app)
+    return TestClient(
+        app,
+        headers={"X-Auth-Request-User": USER},
+    )
 
 
 @pytest.fixture(autouse=True)
 def mock_k8s_base():
     with mock.patch("my_credentials.views.k8s_config"), mock.patch(
-        "my_credentials.views.current_namespace"
+        "my_credentials.views.current_namespace",
+        return_value=USER,
     ):
         yield
 

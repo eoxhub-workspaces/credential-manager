@@ -1,7 +1,8 @@
 import logging
+import http
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from starlette_exporter import PrometheusMiddleware, handle_metrics
 
 app = FastAPI()
@@ -17,6 +18,23 @@ if __name__ != "__main__":
         level=gunicorn_logger.level,
         handlers=gunicorn_logger.handlers,
     )
+
+
+@app.middleware("http")
+async def auth_check(request: Request, call_next):
+    # this is not really an auth middleware, as auth is handled by the ingress
+    # we just check if the user we get here is the correct one
+
+    from my_credentials.views import current_namespace
+
+    user = request.headers["X-Auth-Request-User"]
+    if user != current_namespace():
+        return Response(
+            content="User does not match namespace",
+            status_code=http.HTTPStatus.FORBIDDEN,
+        )
+
+    return await call_next(request)
 
 
 @app.get("/probe")
