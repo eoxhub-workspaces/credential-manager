@@ -30,7 +30,7 @@ async def auth_check(request: Request, call_next):
     user = request.headers["X-Auth-Request-User"]
     if user != current_namespace():
         return Response(
-            content="User does not match namespace",
+            content=f"Access only allowed for user {current_namespace()}, not for {user}",
             status_code=http.HTTPStatus.FORBIDDEN,
         )
 
