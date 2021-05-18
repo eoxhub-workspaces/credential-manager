@@ -58,6 +58,12 @@ async def test_access_only_allowed_for_correct_user(client):
 
 
 @pytest.mark.asyncio
+async def test_access_to_infrastructure_views_allowed_to_anyone(client):
+    response = await client.get("/probe", headers={"X-Auth-Request-User": "other-user"})
+    assert response.status_code == http.HTTPStatus.OK
+
+
+@pytest.mark.asyncio
 async def test_credentials_show_no_results_initially(client):
     with do_mock_secret_list(secrets=[]):
         response = await client.get("/")

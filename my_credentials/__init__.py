@@ -19,20 +19,23 @@ if __name__ != "__main__":
         handlers=gunicorn_logger.handlers,
     )
 
+INFRASTRUCTURE_VIEWS = ["/probe", "/metrics"]
+
 
 @app.middleware("http")
 async def auth_check(request: Request, call_next):
     # this is not really an auth middleware, as auth is handled by the ingress
     # we just check if the user we get here is the correct one
 
-    from my_credentials.views import current_namespace
+    if request.url.path not in INFRASTRUCTURE_VIEWS:
+        from my_credentials.views import current_namespace
 
-    user = request.headers["X-Auth-Request-User"]
-    if user != current_namespace():
-        return Response(
-            content=f"Access only allowed for user {current_namespace()}, not for {user}",
-            status_code=http.HTTPStatus.FORBIDDEN,
-        )
+        user = request.headers["X-Auth-Request-User"]
+        if user != current_namespace():
+            return Response(
+                content=f"Access only allowed for user {current_namespace()}, not {user}",
+                status_code=http.HTTPStatus.FORBIDDEN,
+            )
 
     return await call_next(request)
 
@@ -48,8 +51,7 @@ async def log_middle(request: Request, call_next):
 
     response = await call_next(request)
 
-    ignored_paths = ["/probe", "/metrics"]
-    if request.url.path not in ignored_paths:
+    if request.url.path not in INFRASTRUCTURE_VIEWS:
         # NOTE: swagger validation failures prevent log_start_time from running
         duration = time.time() - start_time
         logging.info(
