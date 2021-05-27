@@ -109,7 +109,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     if is_update:
         existing_secret = ensure_secret_is_mine(credentials_name)
         # set keys to None for deletion
-        new_secret.data = {k: None for k in existing_secret.data} | (
+        new_secret.data = {k: None for k in (existing_secret.data or {})} | (
             new_secret.data or {}
         )
         k8s_client.CoreV1Api().patch_namespaced_secret(
