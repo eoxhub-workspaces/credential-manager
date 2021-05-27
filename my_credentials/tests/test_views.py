@@ -78,8 +78,8 @@ async def test_credentials_are_shown(
     with do_mock_secret_list(secrets=[secret]):
         response = await client.get("/")
 
+    # only show keys
     assert "username" in response.text
-    assert B64DecodedAccessDict(secret.data)["username"] in response.text
 
 
 @pytest.mark.asyncio
