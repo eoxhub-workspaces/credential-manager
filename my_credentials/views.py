@@ -125,7 +125,8 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         )
 
     return RedirectResponse(
-        url="/",
+        # NOTE: ".." works also for updates because the url doesn't end in /
+        url="..",
         status_code=http.HTTPStatus.FOUND,
     )
 
