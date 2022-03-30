@@ -134,7 +134,7 @@ async def test_edit_credentials_updates_secrets(client, mock_secret_patch, secre
     assert body.data["existing-key"] is None
     assert body.metadata.name == "existing-secret"
 
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == ".."
 
 
 @pytest.mark.asyncio
@@ -154,7 +154,7 @@ async def test_create_credentials_creates_secrets(client, mock_secret_create):
     )
     assert kwargs["body"].metadata.name == "new-secret"
 
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == ".."
 
 
 @pytest.mark.asyncio
