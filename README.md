@@ -1,3 +1,3 @@
-# edc-my-credentials
+# credential-manager
 
-Small CRUD app to allow users to manage their own credentials in eurodatacube.
+Small CRUD app to allow users to manage their own credentials.
