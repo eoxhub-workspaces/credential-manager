@@ -20,6 +20,7 @@ if __name__ != "__main__":
 
 INFRASTRUCTURE_VIEWS = ["/probe", "/metrics"]
 
+
 @app.get("/probe")
 def probe():
     return {}
