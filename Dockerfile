@@ -1,4 +1,4 @@
-FROM python:3.9.4
+FROM python:3.13.2
 
 ENV PROMETHEUS_MULTIPROC_DIR /var/tmp/prometheus_multiproc_dir
 RUN mkdir $PROMETHEUS_MULTIPROC_DIR \
