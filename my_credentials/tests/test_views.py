@@ -93,17 +93,22 @@ async def test_edit_credentials_shows_contents(client, secret):
     assert B64DecodedAccessDict(secret.data)["username"] in response.text
 
 
-def create_form_data(is_update: bool):
+def create_form_data(is_update: bool, with_spaces: bool = False):
+    extra = "\t   " if with_spaces else ""
     return "&".join(
         [
             f"{k}={v}"
             for k, v in [
-                ("secret_key", "user"),
+                ("secret_key", extra + "user" + extra),
                 ("secret_key", "pw"),
                 ("secret_value", "testington"),
                 ("secret_value", "supersecret"),
             ]
-            + ([] if is_update else [("credentials_name", "new-secret")])
+            + (
+                []
+                if is_update
+                else [("credentials_name", extra + "new-secret" + extra)]
+            )
         ]
     )
 
@@ -175,3 +180,19 @@ async def test_delete_credentials_not_allowed_for_other_secrets(
 
     assert response.status_code == http.HTTPStatus.FORBIDDEN
     mock_secret_delete.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_credentials_trims_spaces(client, mock_secret_create):
+    response = await client.post(
+        "/credentials-detail/",
+        # NOTE: can't just pass form because async_asgi_testclient doesn't support
+        #       multidicts
+        data=create_form_data(is_update=False, with_spaces=True),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        allow_redirects=False,
+    )
+
+    kwargs = mock_secret_create.mock_calls[0].kwargs
+    assert kwargs["body"].metadata.name == "new-secret"
+    assert "user" in kwargs["body"].data

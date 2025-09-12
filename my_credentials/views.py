@@ -85,17 +85,18 @@ class CredentialsPayload(BaseModel):
 @app.post("/credentials-detail/{credentials_name}", response_class=HTMLResponse)
 @app.post("/credentials-detail/", response_class=HTMLResponse)
 async def create_or_update(request: Request, credentials_name: str = ""):
-
     form_data = await request.form(max_files=0)
 
     is_update = bool(credentials_name)
-    credentials_name = credentials_name or str(form_data.get("credentials_name"))
+    credentials_name = (
+        credentials_name or str(form_data.get("credentials_name")).strip()
+    )
     secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
-    secret_key = [str(sk) for sk in form_data.getlist("secret_key")]
+    secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
     data = CredentialsPayload(
         credentials_name=credentials_name,
         secret_value=secret_value,
-        secret_key=secret_key
+        secret_key=secret_key,
     )
 
     new_secret = k8s_client.V1Secret(
