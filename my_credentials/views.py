@@ -33,7 +33,6 @@ async def startup_load_k8s_config():
 
 @app.get("/", response_class=HTMLResponse)
 async def list_credentials(request: Request):
-
     secret_list: k8s_client.V1SecretList = (
         k8s_client.CoreV1Api().list_namespaced_secret(
             namespace=current_namespace(),
@@ -122,7 +121,6 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             body=new_secret,
         )
     else:
-
         k8s_client.CoreV1Api().create_namespaced_secret(
             namespace=current_namespace(),
             body=new_secret,

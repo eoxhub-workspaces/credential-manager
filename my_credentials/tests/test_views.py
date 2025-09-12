@@ -115,7 +115,6 @@ def create_form_data(is_update: bool, with_spaces: bool = False):
 
 @pytest.mark.asyncio
 async def test_edit_credentials_updates_secrets(client, mock_secret_patch, secret):
-
     with do_mock_secret_read(secret):
         response = await client.post(
             "/credentials-detail/existing-secret",
