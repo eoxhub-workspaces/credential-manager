@@ -33,7 +33,6 @@ async def startup_load_k8s_config():
 
 @app.get("/", response_class=HTMLResponse)
 async def list_credentials(request: Request):
-
     secret_list: k8s_client.V1SecretList = (
         k8s_client.CoreV1Api().list_namespaced_secret(
             namespace=current_namespace(),
@@ -85,17 +84,18 @@ class CredentialsPayload(BaseModel):
 @app.post("/credentials-detail/{credentials_name}", response_class=HTMLResponse)
 @app.post("/credentials-detail/", response_class=HTMLResponse)
 async def create_or_update(request: Request, credentials_name: str = ""):
-
     form_data = await request.form(max_files=0)
 
     is_update = bool(credentials_name)
-    credentials_name = credentials_name or str(form_data.get("credentials_name"))
+    credentials_name = (
+        credentials_name or str(form_data.get("credentials_name")).strip()
+    )
     secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
-    secret_key = [str(sk) for sk in form_data.getlist("secret_key")]
+    secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
     data = CredentialsPayload(
         credentials_name=credentials_name,
         secret_value=secret_value,
-        secret_key=secret_key
+        secret_key=secret_key,
     )
 
     new_secret = k8s_client.V1Secret(
@@ -121,7 +121,6 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             body=new_secret,
         )
     else:
-
         k8s_client.CoreV1Api().create_namespaced_secret(
             namespace=current_namespace(),
             body=new_secret,
