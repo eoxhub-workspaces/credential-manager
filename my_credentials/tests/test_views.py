@@ -183,7 +183,7 @@ async def test_delete_credentials_not_allowed_for_other_secrets(
 
 @pytest.mark.asyncio
 async def test_create_credentials_trims_spaces(client, mock_secret_create):
-    response = await client.post(
+    await client.post(
         "/credentials-detail/",
         # NOTE: can't just pass form because async_asgi_testclient doesn't support
         #       multidicts
