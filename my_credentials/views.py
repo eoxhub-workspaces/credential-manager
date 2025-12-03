@@ -79,6 +79,8 @@ class CredentialsPayload(BaseModel):
     credentials_name: str | None = ""
     secret_value: list[str]
     secret_key: list[str]
+    hide: list[str] = []
+    readonly: list[str] = []
 
 
 @app.post("/credentials-detail/{credentials_name}", response_class=HTMLResponse)
@@ -92,16 +94,26 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
     secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
     secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
+
+    hide_keys = turned_on_or_off(form_data.getlist("hide-key"))
+    hide = [sk for idx, sk in enumerate(secret_key) if hide_keys[idx] == "on"]
+
+    readonly_keys = turned_on_or_off(form_data.getlist("readonly-key"))
+    readonly = [sk for idx, sk in enumerate(secret_key) if readonly_keys[idx] == "on"]
+
     data = CredentialsPayload(
         credentials_name=credentials_name,
         secret_value=secret_value,
         secret_key=secret_key,
+        hide=hide,
+        readonly=readonly,
     )
 
     new_secret = k8s_client.V1Secret(
         metadata=k8s_client.V1ObjectMeta(
             name=data.credentials_name,
-            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
+            annotations={f"hide_{k}": str((k in data.hide)) for k in secret_key} | {f"readonly_{k}": str((k in data.readonly)) for k in secret_key},
+            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE}
         ),
         data={
             key: base64.b64encode(value.encode()).decode()
@@ -147,6 +159,7 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
     return {
         "name": secret.metadata.name,
         "data": B64DecodedAccessDict(secret.data),
+        "annotations": secret.metadata.annotations
     }
 
 
