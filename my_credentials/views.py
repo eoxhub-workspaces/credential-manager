@@ -10,11 +10,9 @@ from kubernetes import client as k8s_client, config as k8s_config
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 
-
 from my_credentials import app
 
 logger = logging.getLogger(__name__)
-
 
 templates = Jinja2Templates(directory="templates")
 
@@ -92,7 +90,6 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
     secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
     secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
-
     data = CredentialsPayload(
         credentials_name=credentials_name,
         secret_value=secret_value,
@@ -102,7 +99,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     new_secret = k8s_client.V1Secret(
         metadata=k8s_client.V1ObjectMeta(
             name=data.credentials_name,
-            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE}
+            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
         ),
         data={
             key: base64.b64encode(value.encode()).decode()
@@ -148,7 +145,7 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
     return {
         "name": secret.metadata.name,
         "data": B64DecodedAccessDict(secret.data),
-        "annotations": secret.metadata.annotations if secret.metadata.annotations else {}
+        "annotations": secret.metadata.annotations if secret.metadata.annotations else {},
     }
 
 
