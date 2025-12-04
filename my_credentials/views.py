@@ -10,11 +10,9 @@ from kubernetes import client as k8s_client, config as k8s_config
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 
-
 from my_credentials import app
 
 logger = logging.getLogger(__name__)
-
 
 templates = Jinja2Templates(directory="templates")
 
@@ -147,6 +145,7 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
     return {
         "name": secret.metadata.name,
         "data": B64DecodedAccessDict(secret.data),
+        "annotations": secret.metadata.annotations if secret.metadata.annotations else {},
     }
 
 
