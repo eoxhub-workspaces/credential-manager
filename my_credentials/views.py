@@ -79,9 +79,6 @@ class CredentialsPayload(BaseModel):
     credentials_name: str | None = ""
     secret_value: list[str]
     secret_key: list[str]
-    hide: list[str] = []
-    readonly: list[str] = []
-    immutable: bool
 
 
 @app.post("/credentials-detail/{credentials_name}", response_class=HTMLResponse)
@@ -96,34 +93,15 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
     secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
 
-    hide_keys = turned_on_or_off(form_data.getlist("hide-key"))
-    hide = [sk for idx, sk in enumerate(secret_key) if hide_keys[idx] == "on"]
-
-    readonly_keys = turned_on_or_off(form_data.getlist("readonly-key"))
-    readonly = [sk for idx, sk in enumerate(secret_key) if readonly_keys[idx] == "on"]
-
-    # for index, key in enumerate(secret_key):
-    #   if key in readonly:
-    #     if secret_key.index(key) != index:
-    #       print(f"remove: {key} at position {index}")
-    #     else:
-    #       print(f"keep: {key} at position {index}")
-    #   else:
-    #     print(f"keep: {key} at position {index}")
-
     data = CredentialsPayload(
         credentials_name=credentials_name,
         secret_value=secret_value,
         secret_key=secret_key,
-        hide=hide,
-        readonly=readonly,
-        immutable=form_data.get("immutable", False)
     )
 
     new_secret = k8s_client.V1Secret(
         metadata=k8s_client.V1ObjectMeta(
             name=data.credentials_name,
-            annotations={f"hide_{k}": str((k in data.hide)) for k in secret_key} | {f"readonly_{k}": str((k in data.readonly)) for k in secret_key},
             labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE}
         ),
         data={
@@ -196,17 +174,3 @@ def ensure_secret_is_mine(credential_name: str) -> k8s_client.V1Secret:
         raise HTTPException(status_code=http.HTTPStatus.FORBIDDEN)
 
     return secret
-
-
-def turned_on_or_off(input: list) -> list:
-  new_list = []
-  for idx, value in enumerate(input):
-    try:
-      if value == "off":
-        if input[idx+1] == "on":
-          new_list.append("on")
-        elif input[idx+1] == "off":
-          new_list.append("off")
-    except IndexError:
-      new_list.append(value)
-  return new_list
