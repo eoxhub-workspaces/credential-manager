@@ -148,7 +148,7 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
     return {
         "name": secret.metadata.name,
         "data": B64DecodedAccessDict(secret.data),
-        "annotations": secret.metadata.annotations
+        "annotations": secret.metadata.annotations if secret.metadata.annotations else {}
     }
 
 
