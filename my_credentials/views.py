@@ -1,6 +1,7 @@
 import base64
 import collections
 import http
+import json
 import logging
 
 from fastapi import Request, Response, HTTPException
@@ -125,11 +126,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
                 namespace=current_namespace(),
                 body=new_secret,
             )
-        except ApiException:
-            raise HTTPException(status_code=http.HTTPStatus.CONFLICT,
-                                detail=f"CONFLICT: "
-                                       f"There's already a credential "
-                                       f"named '{data.credentials_name}'.")
+        except ApiException as e:
+            raise HTTPException(status_code=e.status,
+                                detail=f"Status {e.status} - {e.reason.title()}: "
+                                       f"{json.loads(e.body).get('message')}")
 
     return RedirectResponse(
         # NOTE: ".." works also for updates because the url doesn't end in /
