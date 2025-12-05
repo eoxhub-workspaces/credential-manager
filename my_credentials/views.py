@@ -120,14 +120,14 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             body=new_secret,
         )
     else:
-      try:
-        k8s_client.CoreV1Api().create_namespaced_secret(
-            namespace=current_namespace(),
-            body=new_secret,
-        )
-      except ApiException:
-        raise HTTPException(status_code=http.HTTPStatus.CONFLICT,
-                            detail=f"CONFLICT: There's already a credential named '{data.credentials_name}'.")
+        try:
+            k8s_client.CoreV1Api().create_namespaced_secret(
+                namespace=current_namespace(),
+                body=new_secret,
+            )
+        except ApiException:
+            raise HTTPException(status_code=http.HTTPStatus.CONFLICT,
+                                detail=f"CONFLICT: There's already a credential named '{data.credentials_name}'.")
 
     return RedirectResponse(
         # NOTE: ".." works also for updates because the url doesn't end in /
