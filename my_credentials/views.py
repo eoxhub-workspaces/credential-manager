@@ -127,7 +127,9 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             )
         except ApiException:
             raise HTTPException(status_code=http.HTTPStatus.CONFLICT,
-                                detail=f"CONFLICT: There's already a credential named '{data.credentials_name}'.")
+                                detail=f"CONFLICT: "
+                                       f"There's already a credential "
+                                       f"named '{data.credentials_name}'.")
 
     return RedirectResponse(
         # NOTE: ".." works also for updates because the url doesn't end in /
