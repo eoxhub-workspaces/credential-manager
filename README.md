@@ -94,6 +94,13 @@ async def startup_load_k8s_config():
 ```
 * This function runs once when the FastAPI application starts up. It tries to load the Kubernetes configuration, first using a local file (`load_kube_config`) for development, and then falling back to **in-cluster configuration** (`load_incluster_config`) for when the application is running inside a Kubernetes pod.
 
+### Main Functions
+
+`get_secret_list()`
+ * Retrieves all `V1Secret` objects in the current namespace.
+ * Applies a `label_selector` using `MY_SECRETS_LABEL_KEY=MY_SECRETS_LABEL_VALUE` to **filter** the list, only fetching the secrets managed by the application.
+ * Returns a serialized list of secrets.
+
 ### Endpoints (Views)
 
 ##### 1. List Credentials (Read All)
@@ -101,11 +108,17 @@ async def startup_load_k8s_config():
   * **Path:** `GET /`
   * **Function:** `list_credentials`
   * **Action:**
-      * It retrieves all `V1Secret` objects in the current namespace.
-      * It applies a `label_selector` using `MY_SECRETS_LABEL_KEY=MY_SECRETS_LABEL_VALUE` to **filter** the list, only fetching the secrets managed by the application.
-      * It serializes the list of secrets and renders the `credentials.html` template.
+      * Gets list of secrets.
+      * Renders the `credentials.html` template.
 
-##### 2. View/Edit Credential Form (Read/New)
+##### 2. List Credentials API (Read All)
+
+  * **Path:** `GET /get-credentials`
+  * **Function:** `list_credentials_api`
+  * **Action:**
+      * Returns serialized list of secrets.
+
+##### 3. View/Edit Credential Form (Read/New)
 
   * **Paths:** `GET /credentials-detail/{credential_name}` and `GET /credentials-detail/`
   * **Function:** `credentials_detail`
@@ -114,7 +127,7 @@ async def startup_load_k8s_config():
       * If `credential_name` is empty, it prepares empty data for creating a **new** secret.
       * It renders the `credential_detail.html` template, showing the secret's data in an editable form.
 
-##### 3. Create/Update Credential (Write)
+##### 4. Create/Update Credential (Write)
 
   * **Paths:** `POST /credentials-detail/{credentials_name}` and `POST /credentials-detail/`
   * **Function:** `create_or_update`
@@ -129,7 +142,7 @@ async def startup_load_k8s_config():
         ```
       * **If it's an update:** Keys that exist in the old secret but are missing in the new data are set to `None`, which is a method to explicitly **delete keys** within the existing Kubernetes Secret object.
 
-##### 4. Delete Credential (Delete)
+##### 5. Delete Credential (Delete)
 
   * **Path:** `DELETE /credentials-detail/{credentials_name}`
   * **Function:** `delete_credentials`
