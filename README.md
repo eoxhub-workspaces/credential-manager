@@ -150,3 +150,21 @@ async def startup_load_k8s_config():
       * It calls `ensure_secret_is_mine` to check ownership first.
       * It deletes the specified secret using `delete_namespaced_secret`.
       * It returns an empty response with a **204 No Content** status code, standard for successful deletion.
+
+
+---
+
+## Setup for local development & testing:
+
+### Setup
+
+```shell
+python -m venv venv
+. ./venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Run
+```shell
+uvicorn my_credentials:app --reload
+```
