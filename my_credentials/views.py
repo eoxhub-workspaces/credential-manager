@@ -31,8 +31,7 @@ async def startup_load_k8s_config():
         k8s_config.load_incluster_config()
 
 
-@app.get("/", response_class=HTMLResponse)
-async def list_credentials(request: Request):
+def get_secret_list() -> list:
     secret_list: k8s_client.V1SecretList = (
         k8s_client.CoreV1Api().list_namespaced_secret(
             namespace=current_namespace(),
@@ -40,7 +39,12 @@ async def list_credentials(request: Request):
         )
     )
 
-    secrets_serialized = [serialize_secret(secret) for secret in secret_list.items]
+    return [serialize_secret(secret) for secret in secret_list.items]
+
+
+@app.get("/", response_class=HTMLResponse)
+async def list_credentials(request: Request):
+    secrets_serialized = get_secret_list()
 
     return templates.TemplateResponse(
         "credentials.html",
@@ -49,6 +53,11 @@ async def list_credentials(request: Request):
             "secrets": secrets_serialized,
         },
     )
+
+
+@app.get("/get-credentials")
+async def list_credentials_api():
+    return get_secret_list()
 
 
 @app.get("/credentials-detail/{credential_name}", response_class=HTMLResponse)
