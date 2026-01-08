@@ -148,6 +148,28 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
 
 
+def update_env_var_annotations(secret, key):
+    if secret.metadata.annotations.get(key):
+        # remove key from annotations
+        secret.metadata.annotations[key] = None
+    else:
+        # add key to annotations
+        secret.metadata.annotations[key] = "True"
+    return secret
+
+
+@app.post("/credentials-detail/{credentials_name}/{app}")
+def add_credential_to_jupyterhub_env(credentials_name: str, app: str):
+    secret = ensure_secret_is_mine(credentials_name)
+    secret = update_env_var_annotations(secret, f"eoxhub-env-{app}")
+    k8s_client.CoreV1Api().patch_namespaced_secret(
+        name=credentials_name,
+        namespace=current_namespace(),
+        body=secret,
+    )
+    return Response(status_code=http.HTTPStatus.NO_CONTENT)
+
+
 @app.delete("/credentials-detail/{credentials_name}")
 def delete_credentials(credentials_name: str):  # , response_class=PlainTextResponse
     _ = ensure_secret_is_mine(credentials_name)
