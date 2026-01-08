@@ -111,12 +111,12 @@ async def startup_load_k8s_config():
       * Gets list of secrets.
       * Renders the `credentials.html` template.
 
-##### 2. List Credentials API (Read All)
+##### 2. List Credentials API (Read)
 
-  * **Path:** `GET /get-credentials`
+  * **Path:** `GET /get-credentials?app='''`
   * **Function:** `list_credentials_api`
   * **Action:**
-      * Returns serialized list of secrets.
+      * Returns filtered list of secrets (query parameter `app`), e.g. `/get-credentials?app=jupyterlab` returns a list with all secrets that have the annotation eoxhub-env-*jupyterlab*
 
 ##### 3. View/Edit Credential Form (Read/New)
 
@@ -151,6 +151,11 @@ async def startup_load_k8s_config():
       * It deletes the specified secret using `delete_namespaced_secret`.
       * It returns an empty response with a **204 No Content** status code, standard for successful deletion.
 
+##### 6. Update Annotation to (not) load secrets as env variables (Write)
+  * **Path:** `POST /credentials-detail/{credentials_name}/{app}`
+  * **Function:** `add_credential_to_app_env`
+  * **Action:**
+      * It updates the annotations of the specified credential with `update_env_var_annotations`.
 
 ---
 
