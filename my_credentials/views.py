@@ -55,7 +55,7 @@ async def list_credentials(request: Request):
     )
 
 
-@app.get("/get-credentials") # ?app=
+@app.get("/get-credentials")  # ?app=
 async def list_credentials_api(app=None):
     secret_list = get_secret_list()
     if not app:
