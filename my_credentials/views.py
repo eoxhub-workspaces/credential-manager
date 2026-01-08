@@ -159,7 +159,7 @@ def update_env_var_annotations(secret, key):
 
 
 @app.post("/credentials-detail/{credentials_name}/{app}")
-def add_credential_to_jupyterhub_env(credentials_name: str, app: str):
+def add_credential_to_app_env(credentials_name: str, app: str):
     secret = ensure_secret_is_mine(credentials_name)
     secret = update_env_var_annotations(secret, f"eoxhub-env-{app}")
     k8s_client.CoreV1Api().patch_namespaced_secret(
