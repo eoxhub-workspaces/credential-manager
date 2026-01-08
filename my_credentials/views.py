@@ -25,7 +25,7 @@ MY_SECRETS_LABEL_VALUE = "edc-my-credentials"
 @app.on_event("startup")
 async def startup_load_k8s_config():
     try:
-        k8s_config.load_kube_config()
+        k8s_config.load_kube_config("/home/mziselsberger/cluster/hub-int-core/config")
     except Exception:
         # load_kube_config might throw anything :/
         k8s_config.load_incluster_config()
@@ -151,12 +151,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
 
 
 def update_env_var_annotations(secret, key):
-    if secret.metadata.annotations.get(key):
-        # remove key from annotations
-        secret.metadata.annotations[key] = None
+    if isinstance(secret.metadata.annotations, dict):
+        secret.metadata.annotations[key] = None if secret.metadata.annotations.get(key) else "True"
     else:
-        # add key to annotations
-        secret.metadata.annotations[key] = "True"
+        secret.metadata.annotations = {key: "True"}
     return secret
 
 
@@ -193,7 +191,8 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
 def current_namespace():
     # getting the current namespace like this is documented, so it should be fine:
     # https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/
-    return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+    return "mirjam-testws"
+    # return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
 
 
 class B64DecodedAccessDict(collections.UserDict):
