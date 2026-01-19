@@ -31,8 +31,7 @@ async def startup_load_k8s_config():
         k8s_config.load_incluster_config()
 
 
-@app.get("/", response_class=HTMLResponse)
-async def list_credentials(request: Request):
+def get_secret_list() -> list:
     secret_list: k8s_client.V1SecretList = (
         k8s_client.CoreV1Api().list_namespaced_secret(
             namespace=current_namespace(),
@@ -40,7 +39,12 @@ async def list_credentials(request: Request):
         )
     )
 
-    secrets_serialized = [serialize_secret(secret) for secret in secret_list.items]
+    return [serialize_secret(secret) for secret in secret_list.items]
+
+
+@app.get("/", response_class=HTMLResponse)
+async def list_credentials(request: Request):
+    secrets_serialized = get_secret_list()
 
     return templates.TemplateResponse(
         "credentials.html",
@@ -49,6 +53,14 @@ async def list_credentials(request: Request):
             "secrets": secrets_serialized,
         },
     )
+
+
+@app.get("/get-credentials")  # ?app=
+async def list_credentials_api(app=None):
+    secret_list = get_secret_list()
+    if not app:
+        return secret_list
+    return [s for s in secret_list if s.get("annotations").get(f"eoxhub-env-{app}")]
 
 
 @app.get("/credentials-detail/{credential_name}", response_class=HTMLResponse)
@@ -136,6 +148,28 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         url="..",
         status_code=http.HTTPStatus.FOUND,
     )
+
+
+def update_env_var_annotations(secret, key):
+    if isinstance(secret.metadata.annotations, dict):
+        secret.metadata.annotations[key] = None \
+            if secret.metadata.annotations.get(key) \
+            else "True"
+    else:
+        secret.metadata.annotations = {key: "True"}
+    return secret
+
+
+@app.post("/credentials-detail/{credentials_name}/{app}")
+def add_credential_to_app_env(credentials_name: str, app: str):
+    secret = ensure_secret_is_mine(credentials_name)
+    secret = update_env_var_annotations(secret, f"eoxhub-env-{app}")
+    k8s_client.CoreV1Api().patch_namespaced_secret(
+        name=credentials_name,
+        namespace=current_namespace(),
+        body=secret,
+    )
+    return Response(status_code=http.HTTPStatus.NO_CONTENT)
 
 
 @app.delete("/credentials-detail/{credentials_name}")
