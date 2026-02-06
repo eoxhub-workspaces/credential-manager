@@ -122,7 +122,9 @@ async def create_or_update(request: Request, credentials_name: str = ""):
 
     if type == "kubernetes.io/ssh-auth":
         secret_data = {
-            "ssh-privatekey": base64.b64encode(form_data.get("privatekey").encode()).decode()
+            "ssh-privatekey": base64.b64encode(
+                form_data.get("privatekey").encode()
+            ).decode()
         }
         secret_metadata = k8s_client.V1ObjectMeta(
             name=credentials_name,
@@ -131,7 +133,9 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         )
     elif type == "kubernetes.io/dockerconfigjson":
         secret_data = {
-            ".dockerconfigjson": base64.b64encode(form_data.get("dockercfg").encode()).decode()
+            ".dockerconfigjson": base64.b64encode(
+                form_data.get("dockercfg").encode()
+            ).decode()
         }
     else:
         secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
@@ -186,14 +190,15 @@ async def create_or_update(request: Request, credentials_name: str = ""):
 async def create_form(request: Request):
     return templates.TemplateResponse("create.html", {"request": request})
 
+
 # This handles the data when the user clicks "Submit"
 @app.post("/create")
 async def handle_create(request: Request):
     # logic to save data
     form_data = await request.form(max_files=0)
-    type=form_data.get("type")
-    name=form_data.get("credentials_name")
-    create=form_data.get("create")
+    type = form_data.get("type")
+    name = form_data.get("credentials_name")
+    create = form_data.get("create")
 
     if create:
         return await create_or_update(request)
