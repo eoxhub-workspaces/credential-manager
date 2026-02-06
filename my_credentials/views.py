@@ -82,8 +82,8 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         template = "credential_opaque.html"
     elif type == "kubernetes.io/ssh-auth":
         template = "credential_ssh.html"
-    else:
-        template = "credential_detail.html",
+    elif type == "kubernetes.io/dockerconfigjson":
+        template = "credential_dockerconfigjson.html"
 
     return templates.TemplateResponse(template, {
         "request": request,
@@ -109,6 +109,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
 
     type = form_data.get("type", "")
+    secret_metadata = k8s_client.V1ObjectMeta(
+        name=credentials_name,
+        labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
+    )
     if type == "Opaque":
         secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
         secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
@@ -121,10 +125,6 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             key: base64.b64encode(value.encode()).decode()
             for key, value in zip(data.secret_key, data.secret_value)
         }
-        secret_metadata=k8s_client.V1ObjectMeta(
-            name=credentials_name,
-            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
-        )
     elif type == "kubernetes.io/ssh-auth":
         secret_data = {
             "ssh-privatekey": base64.b64encode(form_data.get("privatekey").encode()).decode()
@@ -134,9 +134,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
             annotations={"cm_keyonly": "True"}
         )
-    else:
-        secret_data = {}
-
+    elif type == "kubernetes.io/dockerconfigjson":
+        secret_data = {
+            ".dockerconfigjson": base64.b64encode(form_data.get("dockercfg").encode()).decode()
+        }
 
     new_secret = k8s_client.V1Secret(
         metadata=secret_metadata,
@@ -194,8 +195,8 @@ async def handle_create(request: Request):
         template = "credential_opaque.html"
     elif type == "kubernetes.io/ssh-auth":
         template = "credential_ssh.html"
-    else:
-        template = "credential.html"
+    elif type == "kubernetes.io/dockerconfigjson":
+        template = "credential_dockerconfigjson.html"
 
     return templates.TemplateResponse(template, {
         "request": request,
