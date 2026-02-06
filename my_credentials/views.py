@@ -79,20 +79,17 @@ async def credentials_detail(request: Request, credential_name: str = ""):
 
     type = secret_data.get("type")
     if type == "key-value (Opaque)":
-        return templates.TemplateResponse("credential_opaque.html", {
-            "request": request,
-            "secret": secret_data,
-            "is_new_credential": False
-        })
+        template = "credential_opaque.html"
+    elif type == "kubernetes.io/ssh-auth":
+        template = "credential_ssh.html"
     else:
-        return templates.TemplateResponse(
-            "credential_detail.html",
-            {
-                "request": request,
-                "secret": secret_data,
-                "is_new_credential": is_new_credential,
-            },
-        )
+        template = "credential_detail.html",
+
+    return templates.TemplateResponse(template, {
+        "request": request,
+        "secret": secret_data,
+        "is_new_credential": False
+    })
 
 
 class CredentialsPayload(BaseModel):
@@ -110,24 +107,41 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     credentials_name = (
         credentials_name or str(form_data.get("credentials_name")).strip()
     )
-    secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
-    secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
-    data = CredentialsPayload(
-        credentials_name=credentials_name,
-        secret_value=secret_value,
-        secret_key=secret_key,
-    )
 
-    new_secret = k8s_client.V1Secret(
-        metadata=k8s_client.V1ObjectMeta(
-            name=data.credentials_name,
-            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
-        ),
-        data={
+    type = form_data.get("type", "")
+    if type == "Opaque":
+        secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
+        secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
+        data = CredentialsPayload(
+            credentials_name=credentials_name,
+            secret_value=secret_value,
+            secret_key=secret_key,
+        )
+        secret_data = {
             key: base64.b64encode(value.encode()).decode()
             for key, value in zip(data.secret_key, data.secret_value)
-        },
-        type=form_data.get("type", "")
+        }
+        secret_metadata=k8s_client.V1ObjectMeta(
+            name=credentials_name,
+            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
+        )
+    elif type == "kubernetes.io/ssh-auth":
+        secret_data = {
+            "ssh-privatekey": base64.b64encode(form_data.get("privatekey").encode()).decode()
+        }
+        secret_metadata = k8s_client.V1ObjectMeta(
+            name=credentials_name,
+            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
+            annotations={"cm_keyonly": "True"}
+        )
+    else:
+        secret_data = {}
+
+
+    new_secret = k8s_client.V1Secret(
+        metadata=secret_metadata,
+        data=secret_data,
+        type=type
     )
 
     if is_update:
@@ -177,17 +191,21 @@ async def handle_create(request: Request):
         return await create_or_update(request)
 
     if type == "Opaque":
-        return templates.TemplateResponse("credential_opaque.html", {
-            "request": request,
-            "secret": {
-                "name": name,
-                "type": type,
-                "data": {},
-            },
-            "is_new_credential": True
-        })
+        template = "credential_opaque.html"
+    elif type == "kubernetes.io/ssh-auth":
+        template = "credential_ssh.html"
+    else:
+        template = "credential.html"
 
-    return {"message": "Created successfully"}
+    return templates.TemplateResponse(template, {
+        "request": request,
+        "secret": {
+            "name": name,
+            "type": type,
+            "data": {},
+        },
+        "is_new_credential": True
+    })
 
 
 def update_env_var_annotations(secret, key):
