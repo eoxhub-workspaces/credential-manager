@@ -121,22 +121,22 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
 
     if type == "kubernetes.io/ssh-auth":
-        secret_data = {
-            "ssh-privatekey": base64.b64encode(
-                form_data.get("privatekey").encode()
-            ).decode()
-        }
+        private_key = form_data.get("privatekey")
+        if isinstance(private_key, str):
+            secret_data = {
+                "ssh-privatekey": base64.b64encode(private_key.encode()).decode()
+            }
         secret_metadata = k8s_client.V1ObjectMeta(
             name=credentials_name,
             labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
             annotations={"cm_keyonly": "True"}
         )
     elif type == "kubernetes.io/dockerconfigjson":
-        secret_data = {
-            ".dockerconfigjson": base64.b64encode(
-                form_data.get("dockercfg").encode()
-            ).decode()
-        }
+        dockercfg = form_data.get("dockercfg")
+        if isinstance(json, str):
+            secret_data = {
+                ".dockerconfigjson": base64.b64encode(dockercfg.encode()).decode()
+            }
     else:
         secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
         secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
