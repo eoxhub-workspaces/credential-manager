@@ -77,14 +77,22 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         )
         secret_data = serialize_secret(secret)
 
-    return templates.TemplateResponse(
-        "credential_detail.html",
-        {
+    type = secret_data.get("type")
+    if type == "key-value (Opaque)":
+        return templates.TemplateResponse("credential_opaque.html", {
             "request": request,
             "secret": secret_data,
-            "is_new_credential": is_new_credential,
-        },
-    )
+            "is_new_credential": False
+        })
+    else:
+        return templates.TemplateResponse(
+            "credential_detail.html",
+            {
+                "request": request,
+                "secret": secret_data,
+                "is_new_credential": is_new_credential,
+            },
+        )
 
 
 class CredentialsPayload(BaseModel):
@@ -149,6 +157,37 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         url="..",
         status_code=http.HTTPStatus.FOUND,
     )
+
+
+# This renders the page when you visit the URL
+@app.get("/create", response_class=HTMLResponse)
+async def create_form(request: Request):
+    return templates.TemplateResponse("create.html", {"request": request})
+
+# This handles the data when the user clicks "Submit"
+@app.post("/create")
+async def handle_create(request: Request):
+    # logic to save data
+    form_data = await request.form(max_files=0)
+    type=form_data.get("type")
+    name=form_data.get("credentials_name")
+    create=form_data.get("create")
+
+    if create:
+        return await create_or_update(request)
+
+    if type == "Opaque":
+        return templates.TemplateResponse("credential_opaque.html", {
+            "request": request,
+            "secret": {
+                "name": name,
+                "type": type,
+                "data": {},
+            },
+            "is_new_credential": True
+        })
+
+    return {"message": "Created successfully"}
 
 
 def update_env_var_annotations(secret, key):
