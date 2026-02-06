@@ -78,6 +78,7 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         secret_data = serialize_secret(secret)
 
     type = secret_data.get("type")
+    template = None
     if type == "key-value (Opaque)":
         template = "credential_opaque.html"
     elif type == "kubernetes.io/ssh-auth":
@@ -85,11 +86,17 @@ async def credentials_detail(request: Request, credential_name: str = ""):
     elif type == "kubernetes.io/dockerconfigjson":
         template = "credential_dockerconfigjson.html"
 
-    return templates.TemplateResponse(template, {
-        "request": request,
-        "secret": secret_data,
-        "is_new_credential": False
-    })
+    if template:
+        return templates.TemplateResponse(template, {
+            "request": request,
+            "secret": secret_data,
+            "is_new_credential": False
+        })
+    else:
+        return RedirectResponse(
+            url="..",
+            status_code=http.HTTPStatus.NOT_FOUND,
+        )
 
 
 class CredentialsPayload(BaseModel):
