@@ -119,6 +119,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             key: base64.b64encode(value.encode()).decode()
             for key, value in zip(data.secret_key, data.secret_value)
         },
+        type=form_data.get("type", "")
     )
 
     if is_update:
@@ -187,6 +188,7 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
         "name": secret.metadata.name,
         "data": B64DecodedAccessDict(secret.data),
         "annotations": secret.metadata.annotations if secret.metadata.annotations else {},
+        "type": secret.type if secret.type != "Opaque" else "key-value (Opaque)"
     }
 
 
