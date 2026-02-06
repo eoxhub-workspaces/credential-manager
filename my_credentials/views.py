@@ -109,6 +109,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
 
     type = form_data.get("type", "")
+    secret_data = {}
     secret_metadata = k8s_client.V1ObjectMeta(
         name=credentials_name,
         labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
