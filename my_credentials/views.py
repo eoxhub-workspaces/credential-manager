@@ -78,13 +78,12 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         secret_data = serialize_secret(secret)
 
     type = secret_data.get("type")
-    template = None
-    if type == "key-value (Opaque)":
-        template = "credential_opaque.html"
-    elif type == "kubernetes.io/ssh-auth":
+    if type == "kubernetes.io/ssh-auth":
         template = "credential_ssh.html"
     elif type == "kubernetes.io/dockerconfigjson":
         template = "credential_dockerconfigjson.html"
+    else:
+        template = "credential_opaque.html"
 
     if template:
         return templates.TemplateResponse(template, {
@@ -116,24 +115,12 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
 
     type = form_data.get("type", "")
-    secret_data = {}
     secret_metadata = k8s_client.V1ObjectMeta(
         name=credentials_name,
         labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
     )
-    if type == "Opaque":
-        secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
-        secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
-        data = CredentialsPayload(
-            credentials_name=credentials_name,
-            secret_value=secret_value,
-            secret_key=secret_key,
-        )
-        secret_data = {
-            key: base64.b64encode(value.encode()).decode()
-            for key, value in zip(data.secret_key, data.secret_value)
-        }
-    elif type == "kubernetes.io/ssh-auth":
+
+    if type == "kubernetes.io/ssh-auth":
         secret_data = {
             "ssh-privatekey": base64.b64encode(form_data.get("privatekey").encode()).decode()
         }
@@ -145,6 +132,18 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     elif type == "kubernetes.io/dockerconfigjson":
         secret_data = {
             ".dockerconfigjson": base64.b64encode(form_data.get("dockercfg").encode()).decode()
+        }
+    else:
+        secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
+        secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
+        data = CredentialsPayload(
+            credentials_name=credentials_name,
+            secret_value=secret_value,
+            secret_key=secret_key,
+        )
+        secret_data = {
+            key: base64.b64encode(value.encode()).decode()
+            for key, value in zip(data.secret_key, data.secret_value)
         }
 
     new_secret = k8s_client.V1Secret(
@@ -199,12 +198,12 @@ async def handle_create(request: Request):
     if create:
         return await create_or_update(request)
 
-    if type == "Opaque":
-        template = "credential_opaque.html"
-    elif type == "kubernetes.io/ssh-auth":
+    if type == "kubernetes.io/ssh-auth":
         template = "credential_ssh.html"
     elif type == "kubernetes.io/dockerconfigjson":
         template = "credential_dockerconfigjson.html"
+    else:
+        template = "credential_opaque.html"
 
     return templates.TemplateResponse(template, {
         "request": request,
