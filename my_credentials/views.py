@@ -119,7 +119,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         name=credentials_name,
         labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
     )
-
+    secret_data = {}
     if type == "kubernetes.io/ssh-auth":
         private_key = form_data.get("privatekey")
         if isinstance(private_key, str):
@@ -133,7 +133,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         )
     elif type == "kubernetes.io/dockerconfigjson":
         dockercfg = form_data.get("dockercfg")
-        if isinstance(json, str):
+        if isinstance(dockercfg, str):
             secret_data = {
                 ".dockerconfigjson": base64.b64encode(dockercfg.encode()).decode()
             }
