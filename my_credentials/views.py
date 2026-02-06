@@ -132,10 +132,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             annotations={"cm_keyonly": "True"}
         )
     elif type == "kubernetes.io/dockerconfigjson":
-        dockercfg = form_data.get("dockercfg")
-        if isinstance(dockercfg, str):
+        cfg = form_data.get("dockercfg")
+        if isinstance(cfg, str):
             secret_data = {
-                ".dockerconfigjson": base64.b64encode(dockercfg.encode()).decode()
+                ".dockerconfigjson": base64.b64encode(cfg.encode()).decode()
             }
     else:
         secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
