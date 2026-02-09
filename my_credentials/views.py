@@ -179,8 +179,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
                                        f"{json.loads(e.body).get('message')}")
 
     return RedirectResponse(
-        # NOTE: ".." works also for updates because the url doesn't end in /
-        url="..",
+        url="/",
         status_code=http.HTTPStatus.FOUND,
     )
 
@@ -201,7 +200,11 @@ async def handle_create(request: Request):
     create = form_data.get("create")
 
     if create:
-        return await create_or_update(request)
+        await create_or_update(request)
+        return RedirectResponse(
+            url="/",
+            status_code=http.HTTPStatus.FOUND,
+        )
 
     if type == "kubernetes.io/ssh-auth":
         template = "credential_ssh.html"
