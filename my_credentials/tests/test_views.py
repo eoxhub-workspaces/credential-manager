@@ -109,6 +109,11 @@ def create_form_data(is_update: bool, with_spaces: bool = False):
                 if is_update
                 else [("credentials_name", extra + "new-secret" + extra)]
             )
+            + (
+                []
+                if is_update
+                else [("create", extra + "true" + extra)]
+            )
         ]
     )
 
@@ -132,13 +137,13 @@ async def test_edit_credentials_updates_secrets(client, mock_secret_patch, secre
     assert body.data["existing-key"] is None
     assert body.metadata.name == "existing-secret"
 
-    # assert response.headers["location"] == ".."
+    assert response.headers["location"] == ".."
 
 
 @pytest.mark.asyncio
 async def test_create_credentials_creates_secrets(client, mock_secret_create):
     response = await client.post(
-        "/credentials-detail/",
+        "/create",
         # NOTE: can't just pass form because async_asgi_testclient doesn't support
         #       multidicts
         data=create_form_data(is_update=False),
@@ -152,7 +157,7 @@ async def test_create_credentials_creates_secrets(client, mock_secret_create):
     )
     assert kwargs["body"].metadata.name == "new-secret"
 
-    # assert response.headers["location"] == ".."
+    assert response.headers["location"] == ".."
 
 
 @pytest.mark.asyncio

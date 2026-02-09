@@ -167,6 +167,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             namespace=current_namespace(),
             body=new_secret,
         )
+        return RedirectResponse(
+            url="..",
+            status_code=http.HTTPStatus.FOUND,
+        )
     else:
         try:
             k8s_client.CoreV1Api().create_namespaced_secret(
@@ -177,11 +181,6 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             raise HTTPException(status_code=e.status,
                                 detail=f"Status {e.status} - {e.reason.title()}: "
                                        f"{json.loads(e.body).get('message')}")
-
-    # return RedirectResponse(
-    #     url="..",
-    #     status_code=http.HTTPStatus.FOUND,
-    # )
 
 
 # This renders the page when you visit the URL
