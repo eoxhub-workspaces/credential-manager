@@ -77,11 +77,26 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         )
         secret_data = serialize_secret(secret)
 
-    type = secret_data.get("type")
-    if type == "kubernetes.io/ssh-auth":
+    secret_type = secret_data.get("type")
+    if secret_type == "kubernetes.io/ssh-auth":
         template = "credential_ssh.html"
-    elif type == "kubernetes.io/dockerconfigjson":
+    elif secret_type == "kubernetes.io/dockerconfigjson":
         template = "credential_dockerconfigjson.html"
+        cfg = secret_data.get("data").get(".dockerconfigjson")
+        secret_data_dict = json.loads(cfg)
+
+        registry = list(secret_data_dict["auths"].keys())[0]
+        user = secret_data_dict["auths"][registry].get("user", "")
+        password = secret_data_dict["auths"][registry].get("password", "")
+        auth = secret_data_dict["auths"][registry].get("auth", "")
+        auth_decoded = base64.b64decode(auth.encode()).decode()
+        secret_data["data"] = {
+            "registry": registry,
+            "user": user,
+            "password": password,
+            "auth": auth_decoded,
+            ".dockerconfigjson": cfg
+        }
     else:
         template = "credential_opaque.html"
 
@@ -132,11 +147,23 @@ async def create_or_update(request: Request, credentials_name: str = ""):
             annotations={"cm_keyonly": "True"}
         )
     elif type == "kubernetes.io/dockerconfigjson":
-        cfg = form_data.get("dockercfg")
-        if isinstance(cfg, str):
-            secret_data = {
-                ".dockerconfigjson": base64.b64encode(cfg.encode()).decode()
-            }
+        registry = form_data.get("registry")
+        user = form_data.get("user", "")
+        password = form_data.get("password", "")
+        auth = form_data.get("auth", "")
+        auth_encoded = base64.b64encode(auth.encode()).decode()
+
+        dockercfg_dict = {"auths":
+                         {f"{registry}":
+                              {"user": user,
+                               "password": password,
+                               "auth": auth_encoded}
+                          }
+                     }
+        dockercfg_json = json.dumps(dockercfg_dict)
+        secret_data = {
+            ".dockerconfigjson": base64.b64encode(dockercfg_json.encode()).decode()
+        }
     else:
         secret_value = [str(sv) for sv in form_data.getlist("secret_value")]
         secret_key = [str(sk).strip() for sk in form_data.getlist("secret_key")]
