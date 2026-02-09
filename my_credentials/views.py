@@ -184,13 +184,13 @@ async def create_or_update(request: Request, credentials_name: str = ""):
 
 
 # This renders the page when you visit the URL
-@app.get("/create", response_class=HTMLResponse)
+@app.get("/create/", response_class=HTMLResponse)
 async def create_form(request: Request):
     return templates.TemplateResponse("create.html", {"request": request})
 
 
 # This handles the data when the user clicks "Submit"
-@app.post("/create")
+@app.post("/create/")
 async def handle_create(request: Request):
     # logic to save data
     form_data = await request.form(max_files=0)
