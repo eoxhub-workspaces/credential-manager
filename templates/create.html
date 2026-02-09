@@ -17,17 +17,17 @@
                         pattern=" *[a-z]([\-.a-z0-9]*[a-z])? *" title="Lower case alphanumeric characters and '-', '.'"
                         required>
                 </div>
-            </div>
-            <div class="clearfix"></div>
-           <div>
-                <div >
-                <label for="type"><b>Type</b> (immutable after creation):</label>
-                <select id="type" name="type" >
+                <label for="type" class="col-md-3 col-form-label"><b>Type</b> (immutable after creation):</label>
+                <div class="col-md-8">
+                <select id="type" name="type" class="form-control" >
                   <option value="Opaque" selected>key-value (Opaque)</option>
                   <option value="kubernetes.io/dockerconfigjson">dockerconfigjson</option>
                   <option value="kubernetes.io/ssh-auth">ssh-auth</option>
                 </select>
                 </div>
+            </div>
+            <div class="clearfix"></div>
+           <div>
                <br>
                 <button type="submit" class="btn btn-success my-2">
                     Create
