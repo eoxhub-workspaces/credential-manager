@@ -178,10 +178,10 @@ async def create_or_update(request: Request, credentials_name: str = ""):
                                 detail=f"Status {e.status} - {e.reason.title()}: "
                                        f"{json.loads(e.body).get('message')}")
 
-    return RedirectResponse(
-        url="/",
-        status_code=http.HTTPStatus.FOUND,
-    )
+    # return RedirectResponse(
+    #     url="..",
+    #     status_code=http.HTTPStatus.FOUND,
+    # )
 
 
 # This renders the page when you visit the URL
@@ -202,7 +202,7 @@ async def handle_create(request: Request):
     if create:
         await create_or_update(request)
         return RedirectResponse(
-            url="/",
+            url="..",
             status_code=http.HTTPStatus.FOUND,
         )
 
