@@ -3,6 +3,7 @@ import collections
 import http
 import json
 import logging
+from typing import cast, Dict
 
 from fastapi import Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
@@ -82,7 +83,9 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         template = "credential_ssh.html"
     elif secret_type == "kubernetes.io/dockerconfigjson":
         template = "credential_dockerconfigjson.html"
-        cfg = secret_data.get("data").get(".dockerconfigjson")
+
+        data_map = cast(Dict[str, str], secret_data.get("data", {}))  # necessary for mypy
+        cfg = data_map.get(".dockerconfigjson", "")
         secret_data_dict = json.loads(cfg)
 
         registry = list(secret_data_dict["auths"].keys())[0]
@@ -95,17 +98,16 @@ async def credentials_detail(request: Request, credential_name: str = ""):
             "user": user,
             "password": password,
             "auth": auth_decoded,
-            ".dockerconfigjson": cfg
+            ".dockerconfigjson": cfg,
         }
     else:
         template = "credential_opaque.html"
 
     if template:
-        return templates.TemplateResponse(template, {
-            "request": request,
-            "secret": secret_data,
-            "is_new_credential": False
-        })
+        return templates.TemplateResponse(
+            template,
+            {"request": request, "secret": secret_data, "is_new_credential": False},
+        )
     else:
         return RedirectResponse(
             url="..",
@@ -144,22 +146,24 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         secret_metadata = k8s_client.V1ObjectMeta(
             name=credentials_name,
             labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
-            annotations={"cm_keyonly": "True"}
+            annotations={"cm_keyonly": "True"},
         )
     elif type == "kubernetes.io/dockerconfigjson":
         registry = form_data.get("registry")
         user = form_data.get("user", "")
         password = form_data.get("password", "")
-        auth = form_data.get("auth", "")
+        auth = str(form_data.get("auth", ""))
         auth_encoded = base64.b64encode(auth.encode()).decode()
 
-        dockercfg_dict = {"auths":
-                         {f"{registry}":
-                              {"user": user,
-                               "password": password,
-                               "auth": auth_encoded}
-                          }
-                     }
+        dockercfg_dict = {
+            "auths": {
+                f"{registry}": {
+                    "user": user,
+                    "password": password,
+                    "auth": auth_encoded,
+                }
+            }
+        }
         dockercfg_json = json.dumps(dockercfg_dict)
         secret_data = {
             ".dockerconfigjson": base64.b64encode(dockercfg_json.encode()).decode()
@@ -178,9 +182,7 @@ async def create_or_update(request: Request, credentials_name: str = ""):
         }
 
     new_secret = k8s_client.V1Secret(
-        metadata=secret_metadata,
-        data=secret_data,
-        type=type
+        metadata=secret_metadata, data=secret_data, type=type
     )
 
     if is_update:
@@ -205,9 +207,11 @@ async def create_or_update(request: Request, credentials_name: str = ""):
                 body=new_secret,
             )
         except ApiException as e:
-            raise HTTPException(status_code=e.status,
-                                detail=f"Status {e.status} - {e.reason.title()}: "
-                                       f"{json.loads(e.body).get('message')}")
+            raise HTTPException(
+                status_code=e.status,
+                detail=f"Status {e.status} - {e.reason.title()}: "
+                f"{json.loads(e.body).get('message')}",
+            )
 
 
 # This renders the page when you visit the URL
@@ -239,22 +243,25 @@ async def handle_create(request: Request):
     else:
         template = "credential_opaque.html"
 
-    return templates.TemplateResponse(template, {
-        "request": request,
-        "secret": {
-            "name": name,
-            "type": type,
-            "data": {},
+    return templates.TemplateResponse(
+        template,
+        {
+            "request": request,
+            "secret": {
+                "name": name,
+                "type": type,
+                "data": {},
+            },
+            "is_new_credential": True,
         },
-        "is_new_credential": True
-    })
+    )
 
 
 def update_env_var_annotations(secret, key):
     if isinstance(secret.metadata.annotations, dict):
-        secret.metadata.annotations[key] = None \
-            if secret.metadata.annotations.get(key) \
-            else "True"
+        secret.metadata.annotations[key] = (
+            None if secret.metadata.annotations.get(key) else "True"
+        )
     else:
         secret.metadata.annotations = {key: "True"}
     return secret
@@ -286,8 +293,10 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
     return {
         "name": secret.metadata.name,
         "data": B64DecodedAccessDict(secret.data),
-        "annotations": secret.metadata.annotations if secret.metadata.annotations else {},
-        "type": secret.type if secret.type != "Opaque" else "key-value (Opaque)"
+        "annotations": secret.metadata.annotations
+        if secret.metadata.annotations
+        else {},
+        "type": secret.type if secret.type != "Opaque" else "key-value (Opaque)",
     }
 
 
