@@ -243,12 +243,8 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
         text_content = None
         if type == "kubernetes.io/ssh-auth":
             if ssh_file:
-                if ssh_file.content_type != "text/plain":
-                    raise HTTPException(
-                        status_code=400, detail="Only .txt files are allowed"
-                    )
-                content = await ssh_file.read()
-                text_content = content.decode("utf-8")
+                validated_file = await validate_and_read_key(ssh_file)
+                text_content = validated_file.get("content")
 
         await create_or_update(request, ssh_file=text_content)
 
@@ -343,3 +339,49 @@ def ensure_secret_is_mine(credential_name: str) -> k8s_client.V1Secret:
         raise HTTPException(status_code=http.HTTPStatus.FORBIDDEN)
 
     return secret
+
+
+async def validate_and_read_key(file: UploadFile):
+
+    MAX_FILE_SIZE = 10 * 1024  # 10KB
+    ALLOWED_EXTENSIONS = {".pem", ".txt", ""}  # Added empty string for no extension
+    KEY_PATTERN = r"-----BEGIN (?P<type>.*?) KEY-----[\s\S]*?-----END (?P=type) KEY-----"
+
+    filename = str(file.filename).lower()
+    _, ext = os.path.splitext(filename)
+
+    if ext and ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file extension '{ext}'."
+        )
+
+    content_bytes = await file.read(MAX_FILE_SIZE + 1)
+    if len(content_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File exceeds the 10KB size limit."
+        )
+
+    try:
+        text_content = content_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="File content is not valid UTF-8 text."
+        )
+
+    match = re.search(KEY_PATTERN, text_content)
+    if not match:
+        raise HTTPException(
+            status_code=400,
+            detail="Security check failed: Valid Key headers (BEGIN/END) not found."
+        )
+
+    return {
+        "status": "success",
+        "filename": file.filename,
+        "key_type": match.group("type"),
+        "has_extension": bool(ext),
+        "content": text_content
+    }
