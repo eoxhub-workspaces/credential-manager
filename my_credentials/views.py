@@ -5,7 +5,7 @@ import json
 import logging
 from typing import cast, Dict
 
-from fastapi import Request, Response, HTTPException
+from fastapi import Request, Response, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from kubernetes import client as k8s_client, config as k8s_config
@@ -84,7 +84,9 @@ async def credentials_detail(request: Request, credential_name: str = ""):
     elif secret_type == "kubernetes.io/dockerconfigjson":
         template = "credential_dockerconfigjson.html"
 
-        data_map = cast(Dict[str, str], secret_data.get("data", {}))  # necessary for mypy
+        data_map = cast(
+            Dict[str, str], secret_data.get("data", {})
+        )  # necessary for mypy
         cfg = data_map.get(".dockerconfigjson", "")
         secret_data_dict = json.loads(cfg)
 
@@ -123,7 +125,9 @@ class CredentialsPayload(BaseModel):
 
 @app.post("/credentials-detail/{credentials_name}", response_class=HTMLResponse)
 @app.post("/credentials-detail/", response_class=HTMLResponse)
-async def create_or_update(request: Request, credentials_name: str = ""):
+async def create_or_update(
+    request: Request, credentials_name: str = "", ssh_file: str | None = None
+):
     form_data = await request.form(max_files=0)
 
     is_update = bool(credentials_name)
@@ -138,7 +142,13 @@ async def create_or_update(request: Request, credentials_name: str = ""):
     )
     secret_data = {}
     if type == "kubernetes.io/ssh-auth":
-        private_key = form_data.get("privatekey")
+        if ssh_file:
+            private_key = ssh_file
+        else:
+            private_key = (
+                str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "") + "\n"
+            )
+
         if isinstance(private_key, str):
             secret_data = {
                 "ssh-privatekey": base64.b64encode(private_key.encode()).decode()
@@ -222,7 +232,7 @@ async def create_form(request: Request):
 
 # This handles the data when the user clicks "Submit"
 @app.post("/create/")
-async def handle_create(request: Request):
+async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
     # logic to save data
     form_data = await request.form(max_files=0)
     type = form_data.get("type")
@@ -230,7 +240,18 @@ async def handle_create(request: Request):
     create = form_data.get("create")
 
     if create:
-        await create_or_update(request)
+        text_content = None
+        if type == "kubernetes.io/ssh-auth":
+            if ssh_file:
+                if ssh_file.content_type != "text/plain":
+                    raise HTTPException(
+                        status_code=400, detail="Only .txt files are allowed"
+                    )
+                content = await ssh_file.read()
+                text_content = content.decode("utf-8")
+
+        await create_or_update(request, ssh_file=text_content)
+
         return RedirectResponse(
             url="..",
             status_code=http.HTTPStatus.FOUND,
