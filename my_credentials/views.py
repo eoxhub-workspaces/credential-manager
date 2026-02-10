@@ -128,7 +128,7 @@ class CredentialsPayload(BaseModel):
 @app.post("/credentials-detail/{credentials_name}", response_class=HTMLResponse)
 @app.post("/credentials-detail/", response_class=HTMLResponse)
 async def create_or_update(
-    request: Request, credentials_name: str = "", ssh_file: str | None = None
+    request: Request, credentials_name: str = "", file_content: str | None = None
 ):
     form_data = await request.form(max_files=0)
 
@@ -144,8 +144,8 @@ async def create_or_update(
     )
     secret_data = {}
     if type == "kubernetes.io/ssh-auth":
-        if ssh_file:
-            private_key = ssh_file
+        if file_content:
+            private_key = file_content
         else:
             private_key = (
                 str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "") + "\n"
@@ -242,13 +242,13 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
     create = form_data.get("create")
 
     if create:
-        text_content = None
+        file_content = None
         if type == "kubernetes.io/ssh-auth":
-            if ssh_file:
+            if ssh_file.filename:
                 validated_file = await validate_and_read_key(ssh_file)
-                text_content = validated_file.get("content")
+                file_content = validated_file.get("content")
 
-        await create_or_update(request, ssh_file=text_content)
+        await create_or_update(request, file_content=file_content)
 
         return RedirectResponse(
             url="..",
