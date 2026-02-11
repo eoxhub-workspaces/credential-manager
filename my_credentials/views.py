@@ -61,9 +61,10 @@ async def list_credentials(request: Request):
 @app.get("/get-credentials")  # ?app=
 async def list_credentials_api(app=None):
     secret_list = get_secret_list()
+    opaque_secrets = [s for s in secret_list if s.get("type") == "key-value (Opaque)"]
     if not app:
-        return secret_list
-    return [s for s in secret_list if s.get("annotations").get(f"eoxhub-env-{app}")]
+        return opaque_secrets
+    return [s for s in opaque_secrets if s.get("annotations").get(f"eoxhub-env-{app}")]
 
 
 @app.get("/credentials-detail/{credential_name}", response_class=HTMLResponse)
