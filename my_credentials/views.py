@@ -149,7 +149,8 @@ async def create_or_update(
             private_key = file_content
         else:
             private_key = (
-                str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "") + "\n"
+                str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "")
+                + "\n"
             )
 
         if isinstance(private_key, str):
@@ -345,40 +346,36 @@ def ensure_secret_is_mine(credential_name: str) -> k8s_client.V1Secret:
 
 
 async def validate_and_read_key(file: UploadFile):
-
     MAX_FILE_SIZE = 10 * 1024  # 10KB
     ALLOWED_EXTENSIONS = {".pem", ".txt", ""}  # Added empty string for no extension
-    KEY_PATTERN = r"-----BEGIN (?P<type>.*?) KEY-----[\s\S]*?-----END (?P=type) KEY-----"
+    KEY_PATTERN = (
+        r"-----BEGIN (?P<type>.*?) KEY-----[\s\S]*?-----END (?P=type) KEY-----"
+    )
 
     filename = str(file.filename).lower()
     _, ext = os.path.splitext(filename)
 
     if ext and ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file extension '{ext}'."
+            status_code=400, detail=f"Unsupported file extension '{ext}'."
         )
 
     content_bytes = await file.read(MAX_FILE_SIZE + 1)
     if len(content_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="File exceeds the 10KB size limit."
-        )
+        raise HTTPException(status_code=413, detail="File exceeds the 10KB size limit.")
 
     try:
         text_content = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
         raise HTTPException(
-            status_code=400,
-            detail="File content is not valid UTF-8 text."
+            status_code=400, detail="File content is not valid UTF-8 text."
         )
 
     match = re.search(KEY_PATTERN, text_content)
     if not match:
         raise HTTPException(
             status_code=400,
-            detail="Security check failed: Valid Key headers (BEGIN/END) not found."
+            detail="Security check failed: Valid Key headers (BEGIN/END) not found.",
         )
 
     return {
@@ -386,5 +383,5 @@ async def validate_and_read_key(file: UploadFile):
         "filename": file.filename,
         "key_type": match.group("type"),
         "has_extension": bool(ext),
-        "content": text_content
+        "content": text_content,
     }
