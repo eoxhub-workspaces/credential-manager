@@ -11,7 +11,15 @@
 
         <form method="POST">
             <div class="mb-3 row">
-                <label for="input-credentials_name" class="col-md-3 col-form-label"><b>Credentials name</b></label>
+                <label for="input-credentials_name" class="col-md-3 col-form-label">
+                    <b>Credentials name</b>
+                    {% if secret_already_exists %}
+                    <br>
+                    <span class="text-danger">
+                        Secret <i>'{{ credentials_name }}'</i> already exists
+                    </span>
+                    {% endif %}
+                </label>
                 <div class="col-md-8">
                     <input type="text" class="form-control" id="input-credentials_name" name="credentials_name"
                         pattern=" *[a-z]([\-.a-z0-9]*[a-z])? *" title="Lower case alphanumeric characters and '-', '.'"
@@ -20,9 +28,9 @@
                 <label for="type" class="col-md-3 col-form-label"><b>Type</b> (immutable after creation):</label>
                 <div class="col-md-8">
                 <select id="type" name="type" class="form-control" >
-                  <option value="Opaque" selected>key-value (Opaque)</option>
-                  <option value="kubernetes.io/dockerconfigjson">dockerconfigjson</option>
-                  <option value="kubernetes.io/ssh-auth">ssh-auth</option>
+                  <option value="Opaque" {% if selected_type=="Opaque" %}selected{% endif %}>key-value (Opaque)</option>
+                  <option value="kubernetes.io/dockerconfigjson" {% if selected_type=="kubernetes.io/dockerconfigjson" %}selected{% endif %}>dockerconfigjson</option>
+                  <option value="kubernetes.io/ssh-auth" {% if selected_type=="kubernetes.io/ssh-auth" %}selected{% endif %}>ssh-auth</option>
                 </select>
                 </div>
             </div>

@@ -244,6 +244,20 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
     name = form_data.get("credentials_name")
     create = form_data.get("create")
 
+    current_secrets = [s.get("name") for s in get_secret_list()]
+    secret_already_exists = name in current_secrets
+
+    if secret_already_exists:
+        return templates.TemplateResponse(
+            "create.html",
+            {
+                "request": request,
+                "secret_already_exists": True,
+                "credentials_name": name,
+                "selected_type": type,
+            },
+        )
+
     if create:
         file_content = None
         if type == "kubernetes.io/ssh-auth":
