@@ -141,15 +141,16 @@ async def test_edit_credentials_updates_secrets(client, mock_secret_patch, secre
 
 
 @pytest.mark.asyncio
-async def test_create_credentials_creates_secrets(client, mock_secret_create):
-    response = await client.post(
-        "/create/",
-        # NOTE: can't just pass form because async_asgi_testclient doesn't support
-        #       multidicts
-        data=create_form_data(is_update=False),
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        allow_redirects=False,
-    )
+async def test_create_credentials_creates_secrets(client, mock_secret_create, secret):
+    with do_mock_secret_list(secrets=[secret]):
+        response = await client.post(
+            "/create/",
+            # NOTE: can't just pass form because async_asgi_testclient doesn't support
+            #       multidicts
+            data=create_form_data(is_update=False),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            allow_redirects=False,
+        )
 
     kwargs = mock_secret_create.mock_calls[0].kwargs
     assert (
