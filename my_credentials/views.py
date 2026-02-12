@@ -83,14 +83,16 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         secret_data = serialize_secret(secret)
 
     secret_type = secret_data.get("type")
+    data_map = cast(Dict[str, str], secret_data.get("data", {}))  # necessary for mypy
+
     if secret_type == "kubernetes.io/ssh-auth":
         template = "credential_ssh.html"
+        masked = mask_private_key(data_map.get("ssh-privatekey", ""))
+        secret_data["data"] = {
+            "ssh-privatekey": masked,
+        }
     elif secret_type == "kubernetes.io/dockerconfigjson":
         template = "credential_dockerconfigjson.html"
-
-        data_map = cast(
-            Dict[str, str], secret_data.get("data", {})
-        )  # necessary for mypy
         cfg = data_map.get(".dockerconfigjson", "")
         secret_data_dict = json.loads(cfg)
 
@@ -130,7 +132,7 @@ class CredentialsPayload(BaseModel):
 @app.post("/credentials-detail/{credentials_name}", response_class=HTMLResponse)
 @app.post("/credentials-detail/", response_class=HTMLResponse)
 async def create_or_update(
-    request: Request, credentials_name: str = "", file_content: str | None = None
+    request: Request, credentials_name: str = "", private_key_content: str | None = None
 ):
     form_data = await request.form(max_files=0)
 
@@ -146,23 +148,12 @@ async def create_or_update(
     )
     secret_data = {}
     if type == "kubernetes.io/ssh-auth":
-        if file_content:
-            private_key = file_content
-        else:
-            private_key = (
-                str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "")
-                + "\n"
-            )
-
-        if isinstance(private_key, str):
+        if isinstance(private_key_content, str):
             secret_data = {
-                "ssh-privatekey": base64.b64encode(private_key.encode()).decode()
+                "ssh-privatekey": base64.b64encode(
+                    private_key_content.encode()
+                ).decode()
             }
-        secret_metadata = k8s_client.V1ObjectMeta(
-            name=credentials_name,
-            labels={MY_SECRETS_LABEL_KEY: MY_SECRETS_LABEL_VALUE},
-            annotations={"cm_keyonly": "True"},
-        )
     elif type == "kubernetes.io/dockerconfigjson":
         registry = form_data.get("registry")
         user = form_data.get("user", "")
@@ -259,13 +250,19 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
             )
 
     if create:
-        file_content = None
+        private_key_content = None
         if type == "kubernetes.io/ssh-auth":
             if ssh_file.filename:
-                validated_file = await validate_and_read_key(ssh_file)
-                file_content = validated_file.get("content")
+                validate_private_key = await validate_and_read_key(ssh_file)
+            else:
+                private_key = (
+                    str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "")
+                    + "\n"
+                )
+                validate_private_key = await validate_and_read_key(private_key)
+            private_key_content = validate_private_key.get("content")
 
-        await create_or_update(request, file_content=file_content)
+        await create_or_update(request, private_key_content=private_key_content)
 
         return RedirectResponse(
             url="..",
@@ -360,31 +357,35 @@ def ensure_secret_is_mine(credential_name: str) -> k8s_client.V1Secret:
     return secret
 
 
-async def validate_and_read_key(file: UploadFile):
+async def validate_and_read_key(input: UploadFile | str):
     MAX_FILE_SIZE = 10 * 1024  # 10KB
     ALLOWED_EXTENSIONS = {".pem", ".txt", ""}  # Added empty string for no extension
     KEY_PATTERN = (
         r"-----BEGIN (?P<type>.*?) KEY-----[\s\S]*?-----END (?P=type) KEY-----"
     )
 
-    filename = str(file.filename).lower()
-    _, ext = os.path.splitext(filename)
+    if isinstance(input, UploadFile):
+        filename = str(input.filename).lower()
+        _, ext = os.path.splitext(filename)
 
-    if ext and ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported file extension '{ext}'."
-        )
+        if ext and ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400, detail=f"Unsupported file extension '{ext}'."
+            )
 
-    content_bytes = await file.read(MAX_FILE_SIZE + 1)
+        content_bytes = await input.read(MAX_FILE_SIZE + 1)
+    else:
+        content_bytes = input.encode("utf-8")
+
     if len(content_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File exceeds the 10KB size limit.")
+        raise HTTPException(
+            status_code=413, detail="Content exceeds the 10KB size limit."
+        )
 
     try:
         text_content = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=400, detail="File content is not valid UTF-8 text."
-        )
+        raise HTTPException(status_code=400, detail="Content is not valid UTF-8 text.")
 
     match = re.search(KEY_PATTERN, text_content)
     if not match:
@@ -395,8 +396,35 @@ async def validate_and_read_key(file: UploadFile):
 
     return {
         "status": "success",
-        "filename": file.filename,
         "key_type": match.group("type"),
-        "has_extension": bool(ext),
         "content": text_content,
     }
+
+
+def mask_private_key(key):
+    def mask_depending_on_length(part, beginning=True):
+        if len(part) < 20:
+            return "***"
+        else:
+            if beginning:
+                return f"{part[:4]}{'*' * (len(part) - 4)}"
+            else:
+                return f"{'*' * (len(part) - 4)}{part[-4:]}"
+
+    KEY_PATTERN = (
+        r"-----BEGIN (?P<type>.*?) KEY-----"
+        r"\s*(?P<body>[\s\S]*?)\s*-----END (?P=type) KEY-----"
+    )
+    match = re.search(KEY_PATTERN, key)
+    content = match.group("body")
+    rows = content.split("\n")
+    for idx, row in enumerate(rows):
+        if idx == 0:
+            rows[idx] = mask_depending_on_length(rows[idx])
+        elif row == rows[-1]:
+            rows[idx] = mask_depending_on_length(rows[idx], False)
+            break
+        else:
+            rows[idx] = f"{'*' * len(row)}"
+    masked = "\n".join(rows)
+    return key.replace(content, masked)
