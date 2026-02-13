@@ -32,6 +32,14 @@
                   <option value="kubernetes.io/dockerconfigjson" {% if selected_type=="kubernetes.io/dockerconfigjson" %}selected{% endif %}>dockerconfigjson</option>
                   <option value="kubernetes.io/ssh-auth" {% if selected_type=="kubernetes.io/ssh-auth" %}selected{% endif %}>ssh-auth</option>
                 </select>
+                    <p class="alert-primary rounded p-2 mt-2">
+                        <b>key-value (Opaque)</b><br>
+                        General-purpose secrets (API keys, passwords). These can be used in argo workflows as well as be mapped as Environment Variables in JupyterLab.<br><br>
+                        <b>dockerconfigjson</b><br>
+                        Credentials for Private Registries. Use this to authorize pulling private container images.<br><br>
+                        <b>ssh-auth</b><br>
+                        Private SSH Keys. Required for cloning private Git repositories or secure server-to-server communication.
+                    </p>
                 </div>
             </div>
             <div class="clearfix"></div>
