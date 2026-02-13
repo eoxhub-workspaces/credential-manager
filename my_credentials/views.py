@@ -221,16 +221,13 @@ async def create_or_update(
             )
 
 
-# This renders the page when you visit the URL
 @app.get("/create/", response_class=HTMLResponse)
 async def create_form(request: Request):
     return templates.TemplateResponse("create.html", {"request": request})
 
 
-# This handles the data when the user clicks "Submit"
 @app.post("/create/")
 async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
-    # logic to save data
     form_data = await request.form(max_files=0)
     type = form_data.get("type")
     name = form_data.get("credentials_name")
