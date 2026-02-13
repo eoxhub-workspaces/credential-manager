@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card mb-3 border-light">
+    <div class="card-body">
+
+        <h4 class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-primary">
+                Create Credentials
+            </span>
+        </h4>
+
+        <form method="POST">
+            <div class="mb-3 row">
+                <label for="input-credentials_name" class="col-md-3 col-form-label">
+                    <b>Credentials name</b>
+                    {% if secret_already_exists %}
+                    <br>
+                    <span class="text-danger">
+                        Secret <i>'{{ credentials_name }}'</i> already exists
+                    </span>
+                    {% endif %}
+                </label>
+                <div class="col-md-8">
+                    <input type="text" class="form-control" id="input-credentials_name" name="credentials_name"
+                        pattern=" *[a-z]([\-.a-z0-9]*[a-z])? *" title="Lower case alphanumeric characters and '-', '.'"
+                        required>
+                </div>
+                <label for="type" class="col-md-3 col-form-label"><b>Type</b> (immutable after creation):</label>
+                <div class="col-md-8">
+                <select id="type" name="type" class="form-control" >
+                  <option value="Opaque" {% if selected_type=="Opaque" %}selected{% endif %}>key-value (Opaque)</option>
+                  <option value="kubernetes.io/dockerconfigjson" {% if selected_type=="kubernetes.io/dockerconfigjson" %}selected{% endif %}>dockerconfigjson</option>
+                  <option value="kubernetes.io/ssh-auth" {% if selected_type=="kubernetes.io/ssh-auth" %}selected{% endif %}>ssh-auth</option>
+                </select>
+                    <p class="alert-primary rounded p-2 mt-2">
+                        <b>key-value (Opaque)</b><br>
+                        General-purpose secrets (API keys, passwords). These can be used in argo workflows as well as be mapped as Environment Variables in JupyterLab.<br><br>
+                        <b>dockerconfigjson</b><br>
+                        Credentials for Private Registries. Use this to authorize pulling private container images.<br><br>
+                        <b>ssh-auth</b><br>
+                        Private SSH Keys. Required for cloning private Git repositories or secure server-to-server communication.
+                    </p>
+                </div>
+            </div>
+            <div class="clearfix"></div>
+           <div>
+               <br>
+                <button type="submit" class="btn btn-success my-2">
+                    Create
+                </button>
+                <a href="../" type="button" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
