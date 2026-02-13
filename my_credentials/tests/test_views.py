@@ -109,11 +109,7 @@ def create_form_data(is_update: bool, with_spaces: bool = False):
                 if is_update
                 else [("credentials_name", extra + "new-secret" + extra)]
             )
-            + (
-                []
-                if is_update
-                else [("create", extra + "true" + extra)]
-            )
+            + ([] if is_update else [("create", extra + "true" + extra)])
         ]
     )
 
