@@ -261,6 +261,23 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
                     + "\n"
                 )
                 validate_private_key = await validate_and_read_key(private_key)
+
+            if isinstance(validate_private_key, str):
+                return templates.TemplateResponse(
+                    "credential_ssh.html",
+                    {
+                        "request": request,
+                        "secret": {
+                            "name": name,
+                            "type": type,
+                            "data": {
+                                "privatekey": form_data.get("privatekey", ""),
+                            },
+                        },
+                        "is_new_credential": True,
+                        "security_check_failed": validate_private_key,
+                    }
+                )
             private_key_content = validate_private_key.get("content")
 
         await create_or_update(request, private_key_content=private_key_content)
@@ -365,35 +382,28 @@ async def validate_and_read_key(input: UploadFile | str):
         r"-----BEGIN (?P<type>.*?) KEY-----[\s\S]*?-----END (?P=type) KEY-----"
     )
 
-    if isinstance(input, UploadFile):
+    if isinstance(input, str):
+        content_bytes = input.encode()
+    else:
         filename = str(input.filename).lower()
         _, ext = os.path.splitext(filename)
 
         if ext and ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(
-                status_code=400, detail=f"Unsupported file extension '{ext}'."
-            )
+            return f"Unsupported file extension '{ext}'"
 
         content_bytes = await input.read(MAX_FILE_SIZE + 1)
-    else:
-        content_bytes = input.encode("utf-8")
 
     if len(content_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413, detail="Content exceeds the 10KB size limit."
-        )
+        return "Content exceeds the 10KB size limit."
 
     try:
         text_content = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="Content is not valid UTF-8 text.")
+        return "Content is not valid UTF-8 text."
 
     match = re.search(KEY_PATTERN, text_content)
     if not match:
-        raise HTTPException(
-            status_code=400,
-            detail="Security check failed: Valid Key headers (BEGIN/END) not found.",
-        )
+        return "Valid Key headers (BEGIN/END) not found."
 
     return {
         "status": "success",
