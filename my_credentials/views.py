@@ -49,6 +49,7 @@ def get_secret_list() -> list:
 
 @app.get("/", response_class=HTMLResponse)
 async def list_credentials(request: Request):
+    check_token(request, namespace=current_namespace())
     secrets_serialized = get_secret_list()
 
     return templates.TemplateResponse(
@@ -61,7 +62,8 @@ async def list_credentials(request: Request):
 
 
 @app.get("/get-credentials")  # ?app=
-async def list_credentials_api(app=None):
+async def list_credentials_api(request: Request, app=None):
+    check_token(request, namespace=current_namespace())
     secret_list = get_secret_list()
     opaque_secrets = [s for s in secret_list if s.get("type") == "key-value (Opaque)"]
     if not app:
@@ -72,6 +74,7 @@ async def list_credentials_api(app=None):
 @app.get("/credentials-detail/{credential_name}", response_class=HTMLResponse)
 @app.get("/credentials-detail/", response_class=HTMLResponse)
 async def credentials_detail(request: Request, credential_name: str = ""):
+    check_token(request, namespace=current_namespace())
     is_new_credential = not bool(credential_name)
 
     if is_new_credential:
@@ -407,3 +410,17 @@ async def validate_and_read_key(input: UploadFile | str):
         "key_type": match.group("type"),
         "content": text_content,
     }
+
+
+def check_token(request: Request, namespace: str):
+    if request.headers.get("Cookie"):
+        cookie = request.headers.get("Cookie")
+        session_info = [c for c in cookie.split("; ") if c.startswith("eoxhub-gateway-session")][0]
+        session_info = session_info.split(".")[0].replace("eoxhub-gateway-session=", "")
+        session_info_decoded = base64.b64decode(session_info.encode()).decode()
+        roles = json.loads(session_info_decoded).get("roles")
+        if (f"ws:{namespace}:credentials-manager:admin" and
+            f"ws:{namespace}:credentials-manager:developer") not in roles:
+            raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
+    else:
+        raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
