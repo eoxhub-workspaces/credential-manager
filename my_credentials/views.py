@@ -98,13 +98,13 @@ async def credentials_detail(request: Request, credential_name: str = ""):
         secret_data_dict = json.loads(cfg)
 
         registry = list(secret_data_dict["auths"].keys())[0]
-        user = secret_data_dict["auths"][registry].get("user", "")
+        username = secret_data_dict["auths"][registry].get("username", "")
         password = secret_data_dict["auths"][registry].get("password", "")
         auth = secret_data_dict["auths"][registry].get("auth", "")
         auth_decoded = base64.b64decode(auth.encode()).decode()
         secret_data["data"] = {
             "registry": registry,
-            "user": user,
+            "username": username,
             "password": password,
             "auth": auth_decoded,
             ".dockerconfigjson": cfg,
@@ -157,7 +157,7 @@ async def create_or_update(
             }
     elif type == "kubernetes.io/dockerconfigjson":
         registry = form_data.get("registry")
-        user = form_data.get("user", "")
+        username = form_data.get("username", "")
         password = form_data.get("password", "")
         auth = str(form_data.get("auth", ""))
         auth_encoded = base64.b64encode(auth.encode()).decode()
@@ -165,7 +165,7 @@ async def create_or_update(
         dockercfg_dict = {
             "auths": {
                 f"{registry}": {
-                    "user": user,
+                    "username": username,
                     "password": password,
                     "auth": auth_encoded,
                 }
