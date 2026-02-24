@@ -414,9 +414,8 @@ async def validate_and_read_key(input: UploadFile | str):
 
 def check_token(request: Request, namespace: str):
     print(request.headers)
-    request.headers.get("Cookie")
-    if request.headers.get("Cookie"):
-        cookie = request.headers.get("Cookie", "")
+    if request.headers.get("cookie"):
+        cookie = request.headers.get("cookie", "")
         session_info = [
             c for c in cookie.split("; ") if c.startswith("eoxhub-gateway-session")
         ][0]
