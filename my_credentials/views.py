@@ -414,16 +414,12 @@ async def validate_and_read_key(input: UploadFile | str):
 
 def check_token(request: Request, namespace: str):
     print(request.headers)
-    print(namespace)
-
     roles = request.headers.get("x-auth-request-roles", "").split(",")
-    print(roles)
     if (
         f"ws:{namespace}:credentials-manager:admin"
         or f"ws:{namespace}:credentials-manager:developer"
     ) not in roles:
-        print("Unauthorized")
-        # raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
+        raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
 
     auth = request.headers.get("auth", "")
     if auth:
