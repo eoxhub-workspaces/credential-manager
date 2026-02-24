@@ -417,9 +417,10 @@ def check_token(request: Request, namespace: str):
     print(namespace)
 
     roles = request.headers.get("x-auth-request-roles", "").split(",")
+    print(roles)
     if (
         f"ws:{namespace}:credentials-manager:admin"
-        and f"ws:{namespace}:credentials-manager:developer"
+        or f"ws:{namespace}:credentials-manager:developer"
     ) not in roles:
         print("Unauthorized")
         # raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
