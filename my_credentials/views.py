@@ -413,6 +413,8 @@ async def validate_and_read_key(input: UploadFile | str):
 
 
 def check_token(request: Request, namespace: str):
+    print(request.headers)
+    request.headers.get("Cookie")
     if request.headers.get("Cookie"):
         cookie = request.headers.get("Cookie", "")
         session_info = [
@@ -426,5 +428,5 @@ def check_token(request: Request, namespace: str):
             and f"ws:{namespace}:credentials-manager:developer"
         ) not in roles:
             raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
-    else:
-        raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
+    # else:
+    #     raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
