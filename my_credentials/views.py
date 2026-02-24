@@ -422,7 +422,7 @@ def check_token(request: Request, namespace: str):
         and f"ws:{namespace}:credentials-manager:developer"
     ) not in roles:
         print("Unauthorized")
-        #raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
+        # raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
 
     auth = request.headers.get("auth", "")
     if auth:
