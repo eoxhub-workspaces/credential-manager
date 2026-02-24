@@ -276,7 +276,7 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
                         },
                         "is_new_credential": True,
                         "security_check_failed": validate_private_key,
-                    }
+                    },
                 )
             private_key_content = validate_private_key.get("content")
 
@@ -414,13 +414,17 @@ async def validate_and_read_key(input: UploadFile | str):
 
 def check_token(request: Request, namespace: str):
     if request.headers.get("Cookie"):
-        cookie = request.headers.get("Cookie")
-        session_info = [c for c in cookie.split("; ") if c.startswith("eoxhub-gateway-session")][0]
+        cookie = request.headers.get("Cookie", "")
+        session_info = [
+            c for c in cookie.split("; ") if c.startswith("eoxhub-gateway-session")
+        ][0]
         session_info = session_info.split(".")[0].replace("eoxhub-gateway-session=", "")
         session_info_decoded = base64.b64decode(session_info.encode()).decode()
         roles = json.loads(session_info_decoded).get("roles")
-        if (f"ws:{namespace}:credentials-manager:admin" and
-            f"ws:{namespace}:credentials-manager:developer") not in roles:
+        if (
+            f"ws:{namespace}:credentials-manager:admin"
+            and f"ws:{namespace}:credentials-manager:developer"
+        ) not in roles:
             raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
     else:
         raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
