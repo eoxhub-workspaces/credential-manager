@@ -418,9 +418,8 @@ def check_token(request: Request):
     token = request.headers.get("authorization", "").replace("Bearer ", "")
     if not token:
         raise HTTPException(status_code=401, detail="Token missing")
-    well_known_url = os.getenv(
-        "well_known_url",
-        "https://hub-test.eox.at/auth/realms/eoxhub/.well-known/openid-configuration",
+    well_known_url = (
+        f"{os.getenv('oidc-issuer-url', '')}/.well-known/openid-configuration"
     )
     jwks_uri = requests.get(well_known_url).json()["jwks_uri"]
     jwks_client = jwt.PyJWKClient(jwks_uri)
