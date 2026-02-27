@@ -426,6 +426,11 @@ def get_jwks_client():
 
 def check_token(request: Request):
     token = request.headers.get("authorization", "").replace("Bearer ", "")
+    check_token_content(token)
+
+
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=300))
+def check_token_content(token):
     jwks_client = get_jwks_client()
     if not token:
         raise HTTPException(status_code=401, detail="Token missing")
