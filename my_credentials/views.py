@@ -416,6 +416,8 @@ async def validate_and_read_key(input: UploadFile | str):
 
 def check_token(request: Request):
     token = request.headers.get("authorization", "").replace("Bearer ", "")
+    if not token:
+        raise HTTPException(status_code=401, detail="Token missing")
     well_known_url = os.getenv(
         "well_known_url",
         "https://hub-test.eox.at/auth/realms/eoxhub/.well-known/openid-configuration",
@@ -432,9 +434,7 @@ def check_token(request: Request):
             options={"verify_exp": True},
         )
     except jwt.ExpiredSignatureError:
-        print("Token has expired")
-        raise HTTPException(status_code=403, detail="Token has expired")
+        raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError as e:
-        print(f"Invalid token: {e}")
-        raise HTTPException(status_code=403, detail=f"Invalid token: {e}")
+        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
     return None
