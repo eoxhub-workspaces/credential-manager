@@ -51,6 +51,15 @@ def mock_secret_delete():
         yield mocker
 
 
+@pytest.fixture()
+def mock_token_check():
+    with mock.patch(
+        "my_credentials.views.check_token",
+        return_value=True
+    ) as mocker:
+        yield mocker
+
+
 @pytest.mark.asyncio
 async def test_access_to_infrastructure_views_allowed_to_anyone(client):
     response = await client.get("/probe", headers={"X-Auth-Request-User": "other-user"})
@@ -58,7 +67,7 @@ async def test_access_to_infrastructure_views_allowed_to_anyone(client):
 
 
 @pytest.mark.asyncio
-async def test_credentials_show_no_results_initially(client):
+async def test_credentials_show_no_results_initially(client, mock_token_check):
     with do_mock_secret_list(secrets=[]):
         response = await client.get("/")
     assert "no credentials" in response.text
@@ -68,6 +77,7 @@ async def test_credentials_show_no_results_initially(client):
 async def test_credentials_are_shown(
     client,
     secret,
+    mock_token_check
 ):
     with do_mock_secret_list(secrets=[secret]):
         response = await client.get("/")
@@ -77,7 +87,7 @@ async def test_credentials_are_shown(
 
 
 @pytest.mark.asyncio
-async def test_only_labelled_credentials_are_shown(client, secret):
+async def test_only_labelled_credentials_are_shown(client, secret, mock_token_check):
     with do_mock_secret_list(secrets=[]) as mocker:
         await client.get("/")
 
@@ -85,7 +95,7 @@ async def test_only_labelled_credentials_are_shown(client, secret):
 
 
 @pytest.mark.asyncio
-async def test_edit_credentials_shows_contents(client, secret):
+async def test_edit_credentials_shows_contents(client, secret, mock_token_check):
     with do_mock_secret_read(secret):
         response = await client.get(f"/credentials-detail/{secret.metadata.name}")
 

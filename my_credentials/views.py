@@ -7,6 +7,9 @@ import os
 import re
 from typing import Dict, cast
 
+import cachetools
+import jwt
+import requests
 from fastapi import File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -49,6 +52,7 @@ def get_secret_list() -> list:
 
 @app.get("/", response_class=HTMLResponse)
 async def list_credentials(request: Request):
+    check_token(request)
     secrets_serialized = get_secret_list()
 
     return templates.TemplateResponse(
@@ -61,7 +65,8 @@ async def list_credentials(request: Request):
 
 
 @app.get("/get-credentials")  # ?app=
-async def list_credentials_api(app=None):
+async def list_credentials_api(request: Request, app=None):
+    check_token(request)
     secret_list = get_secret_list()
     opaque_secrets = [s for s in secret_list if s.get("type") == "key-value (Opaque)"]
     if not app:
@@ -72,6 +77,7 @@ async def list_credentials_api(app=None):
 @app.get("/credentials-detail/{credential_name}", response_class=HTMLResponse)
 @app.get("/credentials-detail/", response_class=HTMLResponse)
 async def credentials_detail(request: Request, credential_name: str = ""):
+    check_token(request)
     is_new_credential = not bool(credential_name)
 
     if is_new_credential:
@@ -273,7 +279,7 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
                         },
                         "is_new_credential": True,
                         "security_check_failed": validate_private_key,
-                    }
+                    },
                 )
             private_key_content = validate_private_key.get("content")
 
@@ -407,3 +413,38 @@ async def validate_and_read_key(input: UploadFile | str):
         "key_type": match.group("type"),
         "content": text_content,
     }
+
+
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=900))
+def get_jwks_client():
+    well_known_url = (
+        f"{os.getenv('oidc-issuer-url', '')}/.well-known/openid-configuration"
+    )
+    jwks_uri = requests.get(well_known_url).json()["jwks_uri"]
+    return jwt.PyJWKClient(jwks_uri)
+
+
+def check_token(request: Request):
+    token = request.headers.get("authorization", "").replace("Bearer ", "")
+    check_token_content(token)
+
+
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=300))
+def check_token_content(token):
+    jwks_client = get_jwks_client()
+    if not token:
+        raise HTTPException(status_code=401, detail="Token missing")
+    try:
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience="realm-management",
+            options={"verify_exp": True},
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+    return None
