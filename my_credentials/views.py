@@ -7,6 +7,7 @@ import os
 import re
 from typing import Dict, cast
 
+import cachetools
 import jwt
 import requests
 from fastapi import File, HTTPException, Request, Response, UploadFile
@@ -414,15 +415,20 @@ async def validate_and_read_key(input: UploadFile | str):
     }
 
 
-def check_token(request: Request):
-    token = request.headers.get("authorization", "").replace("Bearer ", "")
-    if not token:
-        raise HTTPException(status_code=401, detail="Token missing")
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=1800))
+def get_jwks_client():
     well_known_url = (
         f"{os.getenv('oidc-issuer-url', '')}/.well-known/openid-configuration"
     )
     jwks_uri = requests.get(well_known_url).json()["jwks_uri"]
-    jwks_client = jwt.PyJWKClient(jwks_uri)
+    return jwt.PyJWKClient(jwks_uri)
+
+
+def check_token(request: Request):
+    token = request.headers.get("authorization", "").replace("Bearer ", "")
+    jwks_client = get_jwks_client()
+    if not token:
+        raise HTTPException(status_code=401, detail="Token missing")
     try:
         signing_key = jwks_client.get_signing_key_from_jwt(token)
         jwt.decode(
