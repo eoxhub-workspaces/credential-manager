@@ -415,7 +415,7 @@ async def validate_and_read_key(input: UploadFile | str):
     }
 
 
-@cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=1800))
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=900))
 def get_jwks_client():
     well_known_url = (
         f"{os.getenv('oidc-issuer-url', '')}/.well-known/openid-configuration"
