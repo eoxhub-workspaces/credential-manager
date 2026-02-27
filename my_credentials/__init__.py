@@ -14,7 +14,7 @@ if __name__ != "__main__":
 
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message).1000s",
-        level=gunicorn_logger.level,
+        level="WARN",
         handlers=gunicorn_logger.handlers,
     )
 

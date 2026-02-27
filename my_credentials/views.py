@@ -7,6 +7,8 @@ import os
 import re
 from typing import Dict, cast
 
+import jwt
+import requests
 from fastapi import File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -49,7 +51,7 @@ def get_secret_list() -> list:
 
 @app.get("/", response_class=HTMLResponse)
 async def list_credentials(request: Request):
-    check_token(request, namespace=current_namespace())
+    check_token(request)
     secrets_serialized = get_secret_list()
 
     return templates.TemplateResponse(
@@ -63,7 +65,7 @@ async def list_credentials(request: Request):
 
 @app.get("/get-credentials")  # ?app=
 async def list_credentials_api(request: Request, app=None):
-    check_token(request, namespace=current_namespace())
+    check_token(request)
     secret_list = get_secret_list()
     opaque_secrets = [s for s in secret_list if s.get("type") == "key-value (Opaque)"]
     if not app:
@@ -74,7 +76,7 @@ async def list_credentials_api(request: Request, app=None):
 @app.get("/credentials-detail/{credential_name}", response_class=HTMLResponse)
 @app.get("/credentials-detail/", response_class=HTMLResponse)
 async def credentials_detail(request: Request, credential_name: str = ""):
-    check_token(request, namespace=current_namespace())
+    check_token(request)
     is_new_credential = not bool(credential_name)
 
     if is_new_credential:
@@ -412,16 +414,27 @@ async def validate_and_read_key(input: UploadFile | str):
     }
 
 
-def check_token(request: Request, namespace: str):
-    print(request.headers)
-    roles = request.headers.get("x-auth-request-roles", "").split(",")
-    if (
-        f"ws:{namespace}:credentials-manager:admin"
-        or f"ws:{namespace}:credentials-manager:developer"
-    ) not in roles:
-        raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
-
-    auth = request.headers.get("auth", "")
-    if auth:
-        pass
-        # raise HTTPException(status_code=http.HTTPStatus.UNAUTHORIZED)
+def check_token(request: Request):
+    token = request.headers.get("authorization", "").replace("Bearer ", "")
+    well_known_url = os.getenv(
+        "well_known_url",
+        "https://hub-test.eox.at/auth/realms/eoxhub/.well-known/openid-configuration",
+    )
+    jwks_uri = requests.get(well_known_url).json()["jwks_uri"]
+    jwks_client = jwt.PyJWKClient(jwks_uri)
+    try:
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience="realm-management",
+            options={"verify_exp": True},
+        )
+    except jwt.ExpiredSignatureError:
+        print("Token has expired")
+        raise HTTPException(status_code=403, detail="Token has expired")
+    except jwt.InvalidTokenError as e:
+        print(f"Invalid token: {e}")
+        raise HTTPException(status_code=403, detail=f"Invalid token: {e}")
+    return None
