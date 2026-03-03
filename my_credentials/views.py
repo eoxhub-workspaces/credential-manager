@@ -432,7 +432,6 @@ def check_token(request: Request):
 @cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=300))
 def check_token_content(token):
     jwks_client = get_jwks_client()
-    logger.warning(f"{token=}")
     if not token:
         raise HTTPException(status_code=401, detail="Token missing")
     try:
@@ -445,13 +444,15 @@ def check_token_content(token):
                 audience="account",
                 options={"verify_exp": True},
             )
-        except jwt.MissingRequiredClaimError:
-            jwt.decode(
+        except jwt.MissingRequiredClaimError as e:
+            logger.warning(f"{e}\n{token=}")
+            data = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
                 options={"verify_exp": True},
             )
+            logger.warning(f"{data=}")
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError as e:
