@@ -442,7 +442,7 @@ def check_token_content(token):
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience="realm-management",
+                audience="account",
                 options={"verify_exp": True},
             )
         except jwt.MissingRequiredClaimError:
