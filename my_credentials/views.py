@@ -432,6 +432,7 @@ def check_token(request: Request):
 @cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=300))
 def check_token_content(token):
     jwks_client = get_jwks_client()
+    logger.warning(f"{token=}")
     if not token:
         raise HTTPException(status_code=401, detail="Token missing")
     try:
