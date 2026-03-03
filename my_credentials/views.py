@@ -441,16 +441,18 @@ def check_token_content(token):
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience="realm-management",
+                audience="account",
                 options={"verify_exp": True},
             )
-        except jwt.MissingRequiredClaimError:
-            jwt.decode(
+        except jwt.MissingRequiredClaimError as e:
+            logger.warning(f"{e}\n{token=}")
+            data = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
                 options={"verify_exp": True},
             )
+            logger.warning(f"{data=}")
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError as e:
