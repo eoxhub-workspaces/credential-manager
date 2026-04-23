@@ -11,7 +11,8 @@ WORKDIR /srv/service
 ADD requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-ADD . .
+ADD my_credentials ./my_credentials
+ADD templates ./templates
 
 USER www-data
 
