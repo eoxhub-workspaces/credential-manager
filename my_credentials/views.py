@@ -425,7 +425,7 @@ async def validate_and_read_key(input: UploadFile | str):
 @cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=900))
 def get_jwks_client():
     well_known_url = (
-        f"{os.getenv('oidc_issuer_url', '')}/.well-known/openid-configuration"
+        f"{os.getenv('oidc-issuer-url', '')}/.well-known/openid-configuration"
     )
     logger.info(f"{well_known_url=}")
     jwks_uri = requests.get(well_known_url).json()["jwks_uri"]
