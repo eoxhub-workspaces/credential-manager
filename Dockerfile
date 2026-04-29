@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ADD my_credentials ./my_credentials
 ADD templates ./templates
+ADD gunicorn.conf.py .
 
 USER www-data
 
