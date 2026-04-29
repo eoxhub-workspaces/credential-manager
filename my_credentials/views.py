@@ -59,8 +59,9 @@ async def list_credentials(request: Request):
     secrets_serialized = get_secret_list()
 
     return templates.TemplateResponse(
-        "credentials.html",
-        {
+        request=request,
+        name="credentials.html",
+        context={
             "request": request,
             "secrets": secrets_serialized,
         },
@@ -123,8 +124,11 @@ async def credentials_detail(request: Request, credential_name: str = ""):
 
     if template:
         return templates.TemplateResponse(
-            template,
-            {"request": request, "secret": secret_data, "is_new_credential": False},
+            request=request,
+            name=template,
+            context={"request": request,
+                     "secret": secret_data,
+                     "is_new_credential": False},
         )
     else:
         return RedirectResponse(
@@ -234,7 +238,11 @@ async def create_or_update(
 
 @app.get("/create/", response_class=HTMLResponse)
 async def create_form(request: Request):
-    return templates.TemplateResponse("create.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="create.html",
+        context={"request": request}
+    )
 
 
 @app.post("/create/")
@@ -249,8 +257,9 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
         secret_already_exists = name in current_secrets
         if secret_already_exists:
             return templates.TemplateResponse(
-                "create.html",
-                {
+                request=request,
+                name="create.html",
+                context={
                     "request": request,
                     "secret_already_exists": True,
                     "credentials_name": name,
@@ -274,8 +283,9 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
 
             if isinstance(validate_private_key, str):
                 return templates.TemplateResponse(
-                    "credential_ssh.html",
-                    {
+                    request=request,
+                    name="credential_ssh.html",
+                    context={
                         "request": request,
                         "secret": {
                             "name": name,
@@ -305,8 +315,9 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
         template = "credential_opaque.html"
 
     return templates.TemplateResponse(
-        template,
-        {
+        request=request,
+        name=template,
+        context={
             "request": request,
             "secret": {
                 "name": name,
