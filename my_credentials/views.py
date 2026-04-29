@@ -259,10 +259,10 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
         private_key_content = None
         if type == "kubernetes.io/ssh-auth":
             if ssh_file.filename:
-                logger.info(f"Validate provided ssh-file.")
+                logger.info("Validate provided ssh-file.")
                 validate_private_key = await validate_and_read_key(ssh_file)
             else:
-                logger.info(f"Validate provided privatekey.")
+                logger.info("Validate provided privatekey.")
                 private_key = (
                     str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "")
                     + "\n"
