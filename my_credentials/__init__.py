@@ -10,11 +10,11 @@ app.add_middleware(PrometheusMiddleware)
 app.add_route("/metrics", handle_metrics)
 
 if __name__ != "__main__":
-    gunicorn_logger = logging.getLogger("gunicorn.error")
+    gunicorn_logger = logging.getLogger("gunicorn.info")
 
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message).1000s",
-        level="WARN",
+        level="INFO",
         handlers=gunicorn_logger.handlers,
     )
 
