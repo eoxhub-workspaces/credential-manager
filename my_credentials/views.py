@@ -199,6 +199,7 @@ async def create_or_update(
     )
 
     if is_update:
+        logger.info(f"Update secret '{credentials_name}'.")
         existing_secret = ensure_secret_is_mine(credentials_name)
         # set keys to None for deletion
         new_secret.data = {k: None for k in (existing_secret.data or {})} | (
@@ -215,6 +216,7 @@ async def create_or_update(
         )
     else:
         try:
+            logger.info(f"Create secret '{credentials_name}'.")
             k8s_client.CoreV1Api().create_namespaced_secret(
                 namespace=current_namespace(),
                 body=new_secret,
@@ -257,8 +259,10 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
         private_key_content = None
         if type == "kubernetes.io/ssh-auth":
             if ssh_file.filename:
+                logger.info("Validate provided ssh-file.")
                 validate_private_key = await validate_and_read_key(ssh_file)
             else:
+                logger.info("Validate provided privatekey.")
                 private_key = (
                     str(form_data.get("privatekey", "")).rstrip("\n").replace("\r", "")
                     + "\n"
@@ -318,6 +322,7 @@ def update_env_var_annotations(secret, key):
         )
     else:
         secret.metadata.annotations = {key: "True"}
+    logger.info(f"Add annotation '{key}: \"True\"' to '{secret}'.")
     return secret
 
 
@@ -330,6 +335,7 @@ def add_credential_to_app_env(credentials_name: str, app: str):
         namespace=current_namespace(),
         body=secret,
     )
+    logger.info(f"Secret '{credentials_name}' added to '{app}' as environment variable.")
     return Response(status_code=http.HTTPStatus.NO_CONTENT)
 
 
@@ -340,6 +346,7 @@ def delete_credentials(credentials_name: str):  # , response_class=PlainTextResp
         name=credentials_name,
         namespace=current_namespace(),
     )
+    logger.info(f"Secret '{credentials_name}' deleted.")
     return Response(status_code=http.HTTPStatus.NO_CONTENT)
 
 
@@ -420,6 +427,7 @@ def get_jwks_client():
     well_known_url = (
         f"{os.getenv('oidc-issuer-url', '')}/.well-known/openid-configuration"
     )
+    logger.info(f"{well_known_url=}")
     jwks_uri = requests.get(well_known_url).json()["jwks_uri"]
     return jwt.PyJWKClient(jwks_uri)
 
