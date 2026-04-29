@@ -33,7 +33,10 @@ MY_SECRETS_LABEL_VALUE = "edc-my-credentials"
 @app.on_event("startup")
 async def startup_load_k8s_config():
     try:
-        k8s_config.load_kube_config()
+        if os.getenv("KUBECONFIG"):
+          k8s_config.load_kube_config(os.getenv("KUBECONFIG"))
+        else:
+          k8s_config.load_kube_config()
     except Exception:
         # load_kube_config might throw anything :/
         k8s_config.load_incluster_config()
@@ -364,7 +367,10 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
 def current_namespace():
     # getting the current namespace like this is documented, so it should be fine:
     # https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/
-    return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+    if os.getenv("CREDENTIALS_NAMESPACE"):
+      return os.getenv("CREDENTIALS_NAMESPACE")
+    else:
+      return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
 
 
 class B64DecodedAccessDict(collections.UserDict):
@@ -434,7 +440,8 @@ def get_jwks_client():
 
 def check_token(request: Request):
     token = request.headers.get("authorization", "").replace("Bearer ", "")
-    check_token_content(token)
+    if not os.getenv("CRED_ENV") == "LOCAL":
+      check_token_content(token)
 
 
 @cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=300))
