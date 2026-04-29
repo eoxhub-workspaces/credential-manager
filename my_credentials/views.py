@@ -199,7 +199,7 @@ async def create_or_update(
     )
 
     if is_update:
-        logger.info(f"Update secret {credentials_name}.")
+        logger.info(f"Update secret '{credentials_name}'.")
         existing_secret = ensure_secret_is_mine(credentials_name)
         # set keys to None for deletion
         new_secret.data = {k: None for k in (existing_secret.data or {})} | (
@@ -216,7 +216,7 @@ async def create_or_update(
         )
     else:
         try:
-            logger.info(f"Create secret {credentials_name}.")
+            logger.info(f"Create secret '{credentials_name}'.")
             k8s_client.CoreV1Api().create_namespaced_secret(
                 namespace=current_namespace(),
                 body=new_secret,
@@ -335,7 +335,7 @@ def add_credential_to_app_env(credentials_name: str, app: str):
         namespace=current_namespace(),
         body=secret,
     )
-    logger.info(f"Secret '{credentials_name}' added to {app} as environment variable.")
+    logger.info(f"Secret '{credentials_name}' added to '{app}' as environment variable.")
     return Response(status_code=http.HTTPStatus.NO_CONTENT)
 
 
