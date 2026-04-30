@@ -1,6 +1,6 @@
 FROM python:3.13-slim AS builder
 
-WORKDIR /build
+WORKDIR /srv/service
 
 # Install build dependencies for C-extensions (needed for cryptography/cffi)
 RUN apt-get update && apt-get install -y \
@@ -14,9 +14,15 @@ RUN pip install --no-cache-dir poetry poetry-plugin-export
 # Copy only the files needed for dependency resolution
 COPY pyproject.toml poetry.lock ./
 
+# Install EVERYTHING (including dev tools) into the builder stage
+# This makes the builder stage ready for pytest, flake8, and mypy
+RUN poetry config virtualenvs.create false \
+    && poetry install --with dev --no-interaction --no-ansi
+
 # Export to requirements.txt
 RUN poetry export -f requirements.txt --output requirements.txt --without dev
 
+COPY my_credentials ./my_credentials
 
 FROM python:3.13-slim
 
