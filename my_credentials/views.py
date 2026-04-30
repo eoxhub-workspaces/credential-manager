@@ -33,7 +33,10 @@ MY_SECRETS_LABEL_VALUE = "edc-my-credentials"
 @app.on_event("startup")
 async def startup_load_k8s_config():
     try:
-        k8s_config.load_kube_config()
+        if os.getenv("KUBECONFIG"):
+            k8s_config.load_kube_config(os.getenv("KUBECONFIG"))
+        else:
+            k8s_config.load_kube_config()
     except Exception:
         # load_kube_config might throw anything :/
         k8s_config.load_incluster_config()
@@ -56,8 +59,9 @@ async def list_credentials(request: Request):
     secrets_serialized = get_secret_list()
 
     return templates.TemplateResponse(
-        "credentials.html",
-        {
+        request=request,
+        name="credentials.html",
+        context={
             "request": request,
             "secrets": secrets_serialized,
         },
@@ -120,8 +124,11 @@ async def credentials_detail(request: Request, credential_name: str = ""):
 
     if template:
         return templates.TemplateResponse(
-            template,
-            {"request": request, "secret": secret_data, "is_new_credential": False},
+            request=request,
+            name=template,
+            context={"request": request,
+                     "secret": secret_data,
+                     "is_new_credential": False},
         )
     else:
         return RedirectResponse(
@@ -231,7 +238,11 @@ async def create_or_update(
 
 @app.get("/create/", response_class=HTMLResponse)
 async def create_form(request: Request):
-    return templates.TemplateResponse("create.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="create.html",
+        context={"request": request}
+    )
 
 
 @app.post("/create/")
@@ -246,8 +257,9 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
         secret_already_exists = name in current_secrets
         if secret_already_exists:
             return templates.TemplateResponse(
-                "create.html",
-                {
+                request=request,
+                name="create.html",
+                context={
                     "request": request,
                     "secret_already_exists": True,
                     "credentials_name": name,
@@ -271,8 +283,9 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
 
             if isinstance(validate_private_key, str):
                 return templates.TemplateResponse(
-                    "credential_ssh.html",
-                    {
+                    request=request,
+                    name="credential_ssh.html",
+                    context={
                         "request": request,
                         "secret": {
                             "name": name,
@@ -302,8 +315,9 @@ async def handle_create(request: Request, ssh_file: UploadFile = File(None)):
         template = "credential_opaque.html"
 
     return templates.TemplateResponse(
-        template,
-        {
+        request=request,
+        name=template,
+        context={
             "request": request,
             "secret": {
                 "name": name,
@@ -364,7 +378,10 @@ def serialize_secret(secret: k8s_client.V1Secret) -> dict:
 def current_namespace():
     # getting the current namespace like this is documented, so it should be fine:
     # https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/
-    return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+    if os.getenv("CREDENTIALS_NAMESPACE"):
+        return os.getenv("CREDENTIALS_NAMESPACE")
+    else:
+        return open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
 
 
 class B64DecodedAccessDict(collections.UserDict):
@@ -434,13 +451,16 @@ def get_jwks_client():
 
 def check_token(request: Request):
     token = request.headers.get("authorization", "").replace("Bearer ", "")
-    check_token_content(token)
+    if not os.getenv("CRED_ENV") == "LOCAL":
+        logger.info("Checking token")
+        check_token_content(token)
 
 
 @cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=300))
 def check_token_content(token):
     jwks_client = get_jwks_client()
     if not token:
+        logger.info("Token missing")
         raise HTTPException(status_code=401, detail="Token missing")
     try:
         signing_key = jwks_client.get_signing_key_from_jwt(token)
@@ -462,7 +482,10 @@ def check_token_content(token):
             )
             logger.warning(f"{data=}")
     except jwt.ExpiredSignatureError:
+        logger.info("Token has expired")
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError as e:
+        logger.info(f"Invalid token: {e}")
         raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+    logger.info("Token valid")
     return None

@@ -1,7 +1,9 @@
 version: "3.7"
 services:
     my-credentials:
-        build: .
+        build:
+          context: .
+          target: builder # Uses the stage that HAS poetry and all dev tools
         ports:
         - 5000:5000
         volumes:
