@@ -452,6 +452,7 @@ def get_jwks_client():
 def check_token(request: Request):
     token = request.headers.get("authorization", "").replace("Bearer ", "")
     if not os.getenv("CRED_ENV") == "LOCAL":
+        logger.info("Checking token")
         check_token_content(token)
 
 
@@ -459,6 +460,7 @@ def check_token(request: Request):
 def check_token_content(token):
     jwks_client = get_jwks_client()
     if not token:
+        logger.info("Token missing")
         raise HTTPException(status_code=401, detail="Token missing")
     try:
         signing_key = jwks_client.get_signing_key_from_jwt(token)
@@ -478,7 +480,10 @@ def check_token_content(token):
                 options={"verify_exp": True},
             )
     except jwt.ExpiredSignatureError:
+        logger.info("Token has expired")
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError as e:
+        logger.info(f"Invalid token: {e}")
         raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+    logger.info("Token valid")
     return None
