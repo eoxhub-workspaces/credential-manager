@@ -41,7 +41,7 @@ RUN mkdir -p $PROMETHEUS_MULTIPROC_DIR \
 WORKDIR /srv/service
 
 # Copy ONLY the requirements file from the builder stage
-COPY --from=builder /build/requirements.txt .
+COPY --from=builder /srv/service/requirements.txt .
 
 # Install the production-ready requirements
 RUN pip install --no-cache-dir -r requirements.txt
