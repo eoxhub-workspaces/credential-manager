@@ -1,21 +1,53 @@
-FROM python:3.13.2
+FROM python:3.13-slim AS builder
 
-ENV PROMETHEUS_MULTIPROC_DIR /var/tmp/prometheus_multiproc_dir
-RUN mkdir $PROMETHEUS_MULTIPROC_DIR \
+WORKDIR /build
+
+# Install build dependencies for C-extensions (needed for cryptography/cffi)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry and the Export plugin inside the builder
+RUN pip install --no-cache-dir poetry poetry-plugin-export
+
+# Copy only the files needed for dependency resolution
+COPY pyproject.toml poetry.lock ./
+
+# Export to requirements.txt
+RUN poetry export -f requirements.txt --output requirements.txt --without dev
+
+
+FROM python:3.13-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PROMETHEUS_MULTIPROC_DIR=/var/tmp/prometheus_multiproc_dir
+
+# Setup prometheus directory and install tini
+RUN mkdir -p $PROMETHEUS_MULTIPROC_DIR \
     && chown www-data $PROMETHEUS_MULTIPROC_DIR \
-    && chmod g+w $PROMETHEUS_MULTIPROC_DIR
-
-RUN apt-get update && apt-get install tini
+    && chmod g+w $PROMETHEUS_MULTIPROC_DIR \
+    && apt-get update && apt-get install -y tini \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/service
-ADD requirements.txt .
+
+# Copy ONLY the requirements file from the builder stage
+COPY --from=builder /build/requirements.txt .
+
+# Install the production-ready requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
-ADD my_credentials ./my_credentials
-ADD templates ./templates
-ADD gunicorn.conf.py .
+# Copy application code
+COPY my_credentials ./my_credentials
+COPY templates ./templates
+COPY gunicorn.conf.py .
+
+# Use tini as the entrypoint to handle signal forwarding
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 USER www-data
-
 
 CMD ["gunicorn", "--bind=0.0.0.0:8080", "--config", "gunicorn.conf.py", "--workers=1", "-k", "uvicorn.workers.UvicornWorker", "--log-level=INFO", "my_credentials:app"]
