@@ -5,3 +5,7 @@ __pycache__
 *.egg-info
 .mypy_cache
 .pytest_cache
+
+deploy_in_namespace.sh
+localtest.sh
+setup_local_env

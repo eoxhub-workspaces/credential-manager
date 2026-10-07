@@ -56,4 +56,4 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 
 USER www-data
 
-CMD ["gunicorn", "--bind=0.0.0.0:8080", "--config", "gunicorn.conf.py", "--workers=1", "-k", "uvicorn.workers.UvicornWorker", "--log-level=INFO", "my_credentials:app"]
+CMD ["gunicorn", "--bind=[::]:8080", "--config", "gunicorn.conf.py", "--workers=1", "-k", "uvicorn.workers.UvicornWorker", "--log-level=INFO", "my_credentials:app"]
